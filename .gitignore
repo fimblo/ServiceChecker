@@ -1,0 +1,14 @@
+xcuserdata/             # Xcode user-specific settings (VERY IMPORTANT!)
+DerivedData/        # Xcode derived data (build products, indexes, caches)
+build/                # Xcode build products
+*.swp                 # Swap files (created by text editors)
+*.lock                # Lock files (can be created by various tools)
+*.xcconfig            # Xcode configuration files (can contain secrets)
+Pods/                 # CocoaPods dependencies (if used)
+Carthage/             # Carthage dependencies (if used)
+*.framework           # Frameworks (often better managed via package managers)
+*.dSYM                # Debug symbols (can be large)
+*.ipa                 # iOS app packages
+*.pkg                 # macOS installer packages
+*.app                 # Application bundles.idea/                # JetBrains IDE settings (if applicable)
+*.xcuserstate        # Xcode user interface state
