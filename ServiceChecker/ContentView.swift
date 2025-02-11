@@ -13,6 +13,7 @@ struct ServiceStatus: Identifiable {
     let name: String
     let url: String
     var status: Bool
+    var lastError: String = ""  // Added to store error messages
 }
 
 /// Controls the status bar menu and service monitoring
@@ -74,9 +75,13 @@ class StatusBarController: NSObject, ObservableObject {
     func updateServiceStatuses() {
         let upCount = services.indices.reduce(0) { count, index in
             let service = services[index]
-            let (_, status) = checkServiceHealth(service.url)
+            let (errorMessage, status) = checkServiceHealth(service.url)
             DispatchQueue.main.async {
                 self.services[index].status = status == 0
+                // Store error message if there is one
+                if !errorMessage.isEmpty {
+                    self.services[index].lastError = errorMessage
+                }
             }
             return count + (status == 0 ? 1 : 0)
         }
@@ -130,12 +135,13 @@ class StatusBarController: NSObject, ObservableObject {
             let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
             
             let serviceLabel = NSTextField(frame: NSRect(x: 20, y: 0, width: 200, height: 20))
-            serviceLabel.stringValue = "\(statusSymbol) \(service.name)"
+            let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
+            serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
             serviceLabel.isEditable = false
             serviceLabel.isBordered = false
             serviceLabel.backgroundColor = NSColor.clear
             serviceLabel.alignment = NSTextAlignment.left
-            serviceLabel.textColor = NSColor.controlTextColor  // This should give us the default menu text color
+            serviceLabel.textColor = NSColor.controlTextColor
             
             itemView.addSubview(serviceLabel)
             menuItem.view = itemView
