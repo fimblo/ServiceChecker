@@ -18,8 +18,12 @@ struct ServiceStatus: Identifiable {
 /// Controls the status bar menu and service monitoring
 class StatusBarController: NSObject, ObservableObject {
     @Published var services: [ServiceStatus] = getDefaultServices()
-    @Published var updateInterval: TimeInterval = 5.0 {
+    @Published var updateInterval: TimeInterval = {
+        let savedInterval = UserDefaults.standard.double(forKey: "UpdateInterval")
+        return savedInterval > 0 ? savedInterval : 5.0
+    }() {
         didSet {
+            UserDefaults.standard.set(updateInterval, forKey: "UpdateInterval")
             restartMonitoring()
         }
     }
