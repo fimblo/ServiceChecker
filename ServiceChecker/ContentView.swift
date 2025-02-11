@@ -155,7 +155,6 @@ class StatusBarController: NSObject, ObservableObject {
             menu.addItem(menuItem)
         }
 
-        // Add separator
         menu.addItem(NSMenuItem.separator())
         
         // Add interval slider
@@ -201,10 +200,14 @@ class StatusBarController: NSObject, ObservableObject {
         sliderItem.view = sliderView
         menu.addItem(sliderItem)
         
-        // Add separator and quit
+        // Add separator and preferences
         menu.addItem(NSMenuItem.separator())
+        let prefsItem = NSMenuItem(title: "Preferences...", action: #selector(showPreferences), keyEquivalent: ",")
+        prefsItem.target = self
+        menu.addItem(prefsItem)
+        
+        // Add quit item
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        quitItem.isEnabled = true
         menu.addItem(quitItem)
     }
 
@@ -336,6 +339,20 @@ class StatusBarController: NSObject, ObservableObject {
             return getDefaultServices()
         }
     }
+
+    @objc private func showPreferences() {
+        // Switch to regular mode and activate app
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        // Show settings window
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        
+        // Ensure window is visible and active
+        if let window = NSApp.windows.first(where: { $0.title.contains("Settings") }) {
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
 }
 
 // Move getDefaultServices() to be a static function inside StatusBarController
@@ -358,7 +375,7 @@ struct ContentView: View {
                 .padding()
             
             Toggle("Don't show this window at startup", isOn: $dontShowAgain)
-                .onChange(of: dontShowAgain) { oldValue, newValue in  // Updated for macOS 14
+                .onChange(of: dontShowAgain) { oldValue, newValue in
                     UserDefaults.standard.set(newValue, forKey: "HideStartupWindow")
                 }
             
