@@ -17,13 +17,7 @@ struct ServiceStatus: Identifiable {
 
 /// Controls the status bar menu and service monitoring
 class StatusBarController: NSObject, ObservableObject {
-    @Published var services: [ServiceStatus] = [
-        ServiceStatus(name: "server 1",
-                      url: "http://localhost:8081/health", status: false),
-        ServiceStatus(name: "server 2",
-                      url: "http://localhost:8085/health", status: false),
-        // ... more services
-    ]
+    @Published var services: [ServiceStatus] = getDefaultServices()
     
     private var statusBarItem: NSStatusItem!
     private var menu: NSMenu!
