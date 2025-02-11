@@ -62,7 +62,11 @@ class StatusBarController: NSObject, ObservableObject {
 
         DispatchQueue.main.async { [weak self] in
             if let button = self?.statusBarItem.button {
-                button.title = "Count:\(upCount)/\(self?.services.count ?? 0)"
+                if upCount == self?.services.count {
+                    button.title = "Services:✅"
+                } else {
+                    button.title = "Services: \(upCount)/\(self?.services.count ?? 0)"
+                }
             }
             self?.buildMenu()
         }
