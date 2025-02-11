@@ -23,6 +23,7 @@ class StatusBarController: NSObject, ObservableObject {
             restartMonitoring()
         }
     }
+    private var nextUpdateTime: Date = Date()
     
     private var statusBarItem: NSStatusItem!
     private var menu: NSMenu!
@@ -49,8 +50,11 @@ class StatusBarController: NSObject, ObservableObject {
     /// Starts the periodic monitoring of services
     private func startMonitoring() {
         updateServiceStatuses() // Initial check
+        nextUpdateTime = Date().addingTimeInterval(updateInterval)
+        
         updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             self?.updateServiceStatuses()
+            self?.nextUpdateTime = Date().addingTimeInterval(self?.updateInterval ?? 5.0)
         }
     }
 
@@ -86,6 +90,34 @@ class StatusBarController: NSObject, ObservableObject {
     /// Rebuilds the status bar menu with current service statuses
     private func buildMenu() {
         menu.removeAllItems()
+        
+        // Add next update time
+        let timeItem = NSMenuItem()
+        let timeView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+        
+        let nextUpdateLabel = NSTextField(frame: NSRect(x: 20, y: 0, width: 100, height: 20))
+        nextUpdateLabel.stringValue = "Next update:"
+        nextUpdateLabel.isEditable = false
+        nextUpdateLabel.isBordered = false
+        nextUpdateLabel.backgroundColor = NSColor.clear
+        nextUpdateLabel.alignment = NSTextAlignment.left
+        
+        let timeLabel = NSTextField(frame: NSRect(x: 120, y: 0, width: 100, height: 20))
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        timeLabel.stringValue = formatter.string(from: nextUpdateTime)
+        timeLabel.isEditable = false
+        timeLabel.isBordered = false
+        timeLabel.backgroundColor = NSColor.clear
+        timeLabel.alignment = NSTextAlignment.right
+        
+        timeView.addSubview(nextUpdateLabel)
+        timeView.addSubview(timeLabel)
+        
+        timeItem.view = timeView
+        menu.addItem(timeItem)
+        
+        menu.addItem(NSMenuItem.separator())
         
         // Add services status items
         services.forEach { service in
