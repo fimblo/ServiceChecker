@@ -8,17 +8,16 @@
 import SwiftUI
 import AppKit
 
+/// Main application entry point
 @main
 struct ServiceCheckerApp: App {
-    let statusBar = StatusBarController()
+    @StateObject private var statusBar = StatusBarController()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-              .onAppear { // Set activation policy here
+                .onAppear {
                     NSApp.setActivationPolicy(.accessory)
-                    // If your app terminates immediately after this, uncomment the next line:
-                    //DispatchQueue.main.asyncAfter(deadline:.now() + 0.1) { RunLoop.main.run() }
                 }
         }
     }

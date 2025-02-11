@@ -7,6 +7,7 @@
 import SwiftUI
 import AppKit // For NSApplication and NSStatusBarItem
 
+/// Represents the status of a single service being monitored
 struct ServiceStatus: Identifiable {
     let id = UUID()
     let name: String
@@ -14,6 +15,7 @@ struct ServiceStatus: Identifiable {
     var status: Bool
 }
 
+/// Controls the status bar menu and service monitoring
 class StatusBarController: NSObject, ObservableObject {
     @Published var services: [ServiceStatus] = [
         ServiceStatus(name: "server 1",
@@ -22,67 +24,80 @@ class StatusBarController: NSObject, ObservableObject {
                       url: "http://localhost:8085/health", status: false),
         // ... more services
     ]
+    
     private var statusBarItem: NSStatusItem!
     private var menu: NSMenu!
+    private let updateInterval: TimeInterval = 5.0
 
     override init() {
         super.init()
-
-        DispatchQueue.main.async {
-            self.statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-            self.statusBarItem.button?.title = "❓"
-            self.statusBarItem.button?.action = #selector(self.toggleMenu)
-            self.menu = NSMenu()
-            self.statusBarItem.menu = self.menu
-
-            self.updateServiceStatuses() // Initial check
-            Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
-                self.updateServiceStatuses()
-            }
+        DispatchQueue.main.async { [weak self] in
+            self?.setupStatusBar()
+            self?.startMonitoring()
         }
     }
 
-    @objc func toggleMenu() {
-        // noop
+    /// Sets up the status bar item and menu
+    private func setupStatusBar() {
+        statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusBarItem.button {
+            button.title = "❓"
+        }
+        menu = NSMenu()
+        statusBarItem.menu = menu
     }
 
+    /// Starts the periodic monitoring of services
+    private func startMonitoring() {
+        updateServiceStatuses() // Initial check
+        Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
+            self?.updateServiceStatuses()
+        }
+    }
+
+    /// Updates the status of all services and refreshes the menu
     func updateServiceStatuses() {
-        var upCount = 0 // Store number of UP services
-
-        for index in services.indices {
+        let upCount = services.indices.reduce(0) { count, index in
             let service = services[index]
-            let (_, status) = runShellScript(service.url)
-            services[index].status = status == 0 ? true : false
-
-            if status == 0 {
-                upCount += 1
+            let (_, status) = checkServiceHealth(service.url)
+            DispatchQueue.main.async {
+                self.services[index].status = status == 0
             }
-
-            buildMenu() // update menu
+            return count + (status == 0 ? 1 : 0)
         }
 
-        let totalCount = services.count
-        statusBarItem.button?.title = "LS: \(upCount)/\(totalCount)" // Update title
-
+        DispatchQueue.main.async { [weak self] in
+            if let button = self?.statusBarItem.button {
+                button.title = "Count:\(upCount)/\(self?.services.count ?? 0)"
+            }
+            self?.buildMenu()
+        }
     }
 
-    func buildMenu() {
+    /// Rebuilds the status bar menu with current service statuses
+    private func buildMenu() {
         menu.removeAllItems()
-
-        for service in services {
-            let menuItem = NSMenuItem(title: "\(service.name): \(service.status)", action: nil, keyEquivalent: "")
+        
+        services.forEach { service in
+            let statusSymbol = service.status ? "✅" : "❌"
+            let menuItem = NSMenuItem(
+                title: "\(statusSymbol) \(service.name)",
+                action: nil,
+                keyEquivalent: ""
+            )
             menu.addItem(menuItem)
         }
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-
     }
 
-    func runShellScript(_ url: String) -> (String, Int) {
-        // print("runShellScript", url)
+    /// Checks the health of a service endpoint
+    /// - Parameter url: The health check URL to query
+    /// - Returns: A tuple containing any output string and status code (0 for success)
+    private func checkServiceHealth(_ url: String) -> (String, Int) {
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/curl") // Or path to your script
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
         task.arguments = ["-o", "/dev/null", "-s", "-w", "%{http_code}\\n", url]
 
         let pipe = Pipe()
@@ -95,21 +110,22 @@ class StatusBarController: NSObject, ObservableObject {
             let output = String(data: data, encoding: .utf8) ?? ""
             task.waitUntilExit()
             
-            if let statusCode = Int(output.trimmingCharacters(in:.whitespacesAndNewlines)), (200...299).contains(statusCode) {
-                return ("", 0) // Success (status code in 200-299 range)
-            } else {
-                return ("", 1) // Failure (any other status code or error)
+            if let statusCode = Int(output.trimmingCharacters(in:.whitespacesAndNewlines)),
+               (200...299).contains(statusCode) {
+                return ("", 0)
             }
+            return ("", 1)
         } catch {
-            print("Error running script: \(error)")
+            print("Error checking service health: \(error)")
             return ("", 1)
         }
     }
 }
 
+/// Main content view (unused in this app)
 struct ContentView: View {
     var body: some View {
-        Text("This view is not used as we are using the status bar item.")
+        Text("Service monitoring is active in the status bar.")
             .padding()
     }
 }
