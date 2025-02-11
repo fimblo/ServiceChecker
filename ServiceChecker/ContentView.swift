@@ -122,12 +122,20 @@ class StatusBarController: NSObject, ObservableObject {
         // Add services status items
         services.forEach { service in
             let statusSymbol = service.status ? "✅" : "❌"
-            let menuItem = NSMenuItem(
-                title: "\(statusSymbol) \(service.name)",
-                action: nil,
-                keyEquivalent: ""
-            )
-            menuItem.isEnabled = true
+            let menuItem = NSMenuItem()
+            
+            let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+            
+            let serviceLabel = NSTextField(frame: NSRect(x: 20, y: 0, width: 200, height: 20))
+            serviceLabel.stringValue = "\(statusSymbol) \(service.name)"
+            serviceLabel.isEditable = false
+            serviceLabel.isBordered = false
+            serviceLabel.backgroundColor = NSColor.clear
+            serviceLabel.alignment = NSTextAlignment.left
+            serviceLabel.textColor = NSColor.controlTextColor  // This should give us the default menu text color
+            
+            itemView.addSubview(serviceLabel)
+            menuItem.view = itemView
             menu.addItem(menuItem)
         }
 
