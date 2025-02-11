@@ -12,3 +12,4 @@ Carthage/             # Carthage dependencies (if used)
 *.pkg                 # macOS installer packages
 *.app                 # Application bundles.idea/                # JetBrains IDE settings (if applicable)
 *.xcuserstate        # Xcode user interface state
+.vscode/
