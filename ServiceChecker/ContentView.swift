@@ -18,10 +18,15 @@ struct ServiceStatus: Identifiable {
 /// Controls the status bar menu and service monitoring
 class StatusBarController: NSObject, ObservableObject {
     @Published var services: [ServiceStatus] = getDefaultServices()
+    @Published var updateInterval: TimeInterval = 5.0 {
+        didSet {
+            restartMonitoring()
+        }
+    }
     
     private var statusBarItem: NSStatusItem!
     private var menu: NSMenu!
-    private let updateInterval: TimeInterval = 5.0
+    private var updateTimer: Timer?
 
     override init() {
         super.init()
@@ -44,9 +49,15 @@ class StatusBarController: NSObject, ObservableObject {
     /// Starts the periodic monitoring of services
     private func startMonitoring() {
         updateServiceStatuses() // Initial check
-        Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
+        updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             self?.updateServiceStatuses()
         }
+    }
+
+    /// Restarts monitoring with new interval
+    private func restartMonitoring() {
+        updateTimer?.invalidate()
+        startMonitoring()
     }
 
     /// Updates the status of all services and refreshes the menu
@@ -76,6 +87,7 @@ class StatusBarController: NSObject, ObservableObject {
     private func buildMenu() {
         menu.removeAllItems()
         
+        // Add services status items
         services.forEach { service in
             let statusSymbol = service.status ? "✅" : "❌"
             let menuItem = NSMenuItem(
@@ -83,11 +95,81 @@ class StatusBarController: NSObject, ObservableObject {
                 action: nil,
                 keyEquivalent: ""
             )
+            menuItem.isEnabled = true
             menu.addItem(menuItem)
         }
 
+        // Add separator
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        
+        // Add interval slider
+        let sliderItem = NSMenuItem()
+        let sliderView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 50))  // Increased width to 240
+        
+        let label = NSTextField(frame: NSRect(x: 20, y: 30, width: 200, height: 20))  // Increased width to 200
+        label.stringValue = "Update interval: \(Int(updateInterval))s"
+        label.isEditable = false
+        label.isBordered = false
+        label.backgroundColor = .clear
+        label.alignment = .center
+        
+        // Add min/max labels
+        let minLabel = NSTextField(frame: NSRect(x: 20, y: 0, width: 20, height: 15))
+        minLabel.stringValue = "1s"
+        minLabel.isEditable = false
+        minLabel.isBordered = false
+        minLabel.backgroundColor = .clear
+        minLabel.alignment = .left
+        
+        let maxLabel = NSTextField(frame: NSRect(x: 180, y: 0, width: 40, height: 15))  // Adjusted x position
+        maxLabel.stringValue = "60s"
+        maxLabel.isEditable = false
+        maxLabel.isBordered = false
+        maxLabel.backgroundColor = .clear
+        maxLabel.alignment = .right
+        
+        let slider = NSSlider(frame: NSRect(x: 20, y: 15, width: 200, height: 20))  // Increased width to 200
+        slider.minValue = 0
+        slider.maxValue = 12
+        slider.doubleValue = intervalToSliderPosition(updateInterval)
+        slider.target = self
+        slider.action = #selector(sliderChanged(_:))
+        slider.numberOfTickMarks = 13
+        slider.allowsTickMarkValuesOnly = true
+        
+        sliderView.addSubview(label)
+        sliderView.addSubview(slider)
+        sliderView.addSubview(minLabel)
+        sliderView.addSubview(maxLabel)
+        
+        sliderItem.view = sliderView
+        menu.addItem(sliderItem)
+        
+        // Add separator and quit
+        menu.addItem(NSMenuItem.separator())
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        quitItem.isEnabled = true
+        menu.addItem(quitItem)
+    }
+
+    /// Converts slider position to actual interval value
+    private func sliderPositionToInterval(_ position: Double) -> TimeInterval {
+        if position == 0 { return 1 }
+        return TimeInterval(position * 5)
+    }
+    
+    /// Converts interval to nearest slider position
+    private func intervalToSliderPosition(_ interval: TimeInterval) -> Double {
+        if interval <= 1 { return 0 }
+        return round(interval / 5)
+    }
+    
+    @objc private func sliderChanged(_ sender: NSSlider) {
+        let newInterval = sliderPositionToInterval(sender.doubleValue)
+        updateInterval = newInterval
+        if let label = sender.superview?.subviews.first as? NSTextField {
+            label.stringValue = "Update interval: \(Int(newInterval))s"
+        }
     }
 
     /// Checks the health of a service endpoint
