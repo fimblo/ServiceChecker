@@ -347,10 +347,26 @@ extension StatusBarController {
     }
 }
 
-/// Main content view (unused in this app)
+/// Main content view
 struct ContentView: View {
+    @State private var dontShowAgain = UserDefaults.standard.bool(forKey: "HideStartupWindow")
+    @Environment(\.dismiss) private var dismiss
+    
     var body: some View {
-        Text("Service monitoring is active in the status bar.")
-            .padding()
+        VStack(spacing: 16) {
+            Text("Service monitoring is active in the status bar.")
+                .padding()
+            
+            Toggle("Don't show this window at startup", isOn: $dontShowAgain)
+                .onChange(of: dontShowAgain) { oldValue, newValue in  // Updated for macOS 14
+                    UserDefaults.standard.set(newValue, forKey: "HideStartupWindow")
+                }
+            
+            Button("Close") {
+                dismiss()
+            }
+        }
+        .padding()
+        .frame(width: 300)
     }
 }

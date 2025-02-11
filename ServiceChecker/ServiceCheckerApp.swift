@@ -11,14 +11,16 @@ import AppKit
 /// Main application entry point
 @main
 struct ServiceCheckerApp: App {
-    @StateObject private var statusBar = StatusBarController()
-
+    @StateObject private var statusBarController = StatusBarController()
+    
+    init() {
+        // Set activation policy before any UI is created
+        NSApplication.shared.setActivationPolicy(.accessory)
+    }
+    
     var body: some Scene {
-        WindowGroup {
+        Settings {
             ContentView()
-                .onAppear {
-                    NSApp.setActivationPolicy(.accessory)
-                }
         }
     }
 }
