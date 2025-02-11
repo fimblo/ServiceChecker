@@ -5,7 +5,7 @@
 //  Created by fimblo on 2025-02-10.
 //
 import SwiftUI
-import AppKit // For NSApplication and NSStatusBarItem
+import AppKit
 
 /// Represents the status of a single service being monitored
 struct ServiceStatus: Identifiable {
@@ -81,35 +81,10 @@ class StatusBarController: NSObject, ObservableObject {
             return count + (status == 0 ? 1 : 0)
         }
 
+        // Update the status bar icon
         DispatchQueue.main.async { [weak self] in
             if let button = self?.statusBarItem.button {
-
-                // Create composite image
-                let configuration = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
-                let serverImage = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Server Status")?
-                    .withSymbolConfiguration(configuration)
-                
-                // Create a new image context
-                let finalImage = NSImage(size: NSSize(width: 18, height: 18))
-                finalImage.lockFocus()
-                
-                // Draw server icon (in template mode)
-                serverImage?.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
-                
-                // Draw warning indicator if there's a problem
-                if upCount != self?.services.count {
-                    let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-                        .applying(.init(paletteColors: [.systemRed]))
-                    let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
-                        .withSymbolConfiguration(statusConfiguration)
-                    
-                    statusImage?.draw(in: NSRect(x: 8, y: 0, width: 10, height: 10))
-                }
-                
-                finalImage.unlockFocus()
-                finalImage.isTemplate = false  // Allow colors to show
-                
-                button.image = finalImage
+                self?.updateStatusBarIcon(button: button, upCount: upCount)
             }
             self?.buildMenu()
         }
@@ -220,18 +195,19 @@ class StatusBarController: NSObject, ObservableObject {
         menu.addItem(quitItem)
     }
 
-    /// Converts slider position to actual interval value
+    /// Converts a slider position (0-12) to seconds (1-60)
     private func sliderPositionToInterval(_ position: Double) -> TimeInterval {
         if position == 0 { return 1 }
         return TimeInterval(position * 5)
     }
     
-    /// Converts interval to nearest slider position
+    /// Converts time interval in seconds to nearest slider position
     private func intervalToSliderPosition(_ interval: TimeInterval) -> Double {
         if interval <= 1 { return 0 }
         return round(interval / 5)
     }
     
+    /// Handles slider value changes and updates the UI
     @objc private func sliderChanged(_ sender: NSSlider) {
         let newInterval = sliderPositionToInterval(sender.doubleValue)
         updateInterval = newInterval
@@ -240,9 +216,9 @@ class StatusBarController: NSObject, ObservableObject {
         }
     }
 
-    /// Checks the health of a service endpoint
-    /// - Parameter url: The health check URL to query
-    /// - Returns: A tuple containing any output string and status code (0 for success)
+    /// Checks if a service endpoint is healthy using curl
+    /// - Parameter url: The health check URL
+    /// - Returns: Tuple of (output string, status code) where 0 means success
     private func checkServiceHealth(_ url: String) -> (String, Int) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
@@ -267,6 +243,35 @@ class StatusBarController: NSObject, ObservableObject {
             print("Error checking service health: \(error)")
             return ("", 1)
         }
+    }
+
+    /// Updates the status bar icon based on service health
+    private func updateStatusBarIcon(button: NSStatusBarButton, upCount: Int) {
+        // Create composite image
+        let configuration = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        let serverImage = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Server Status")?
+            .withSymbolConfiguration(configuration)
+        
+        let finalImage = NSImage(size: NSSize(width: 18, height: 18))
+        finalImage.lockFocus()
+        
+        // Draw base server icon
+        serverImage?.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
+        
+        // Add red warning indicator if any service is down
+        if upCount != services.count {
+            let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
+                .applying(.init(paletteColors: [.systemRed]))
+            let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
+                .withSymbolConfiguration(statusConfiguration)
+            
+            statusImage?.draw(in: NSRect(x: 8, y: 0, width: 10, height: 10))
+        }
+        
+        finalImage.unlockFocus()
+        finalImage.isTemplate = false  // Enable colored warning indicator
+        
+        button.image = finalImage
     }
 }
 
