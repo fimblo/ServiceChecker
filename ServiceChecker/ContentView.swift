@@ -6,6 +6,7 @@
 //
 import SwiftUI
 import AppKit
+import Foundation
 
 /// Represents the status of a single service being monitored
 struct ServiceStatus: Identifiable {
@@ -16,9 +17,15 @@ struct ServiceStatus: Identifiable {
     var lastError: String = ""  // Added to store error messages
 }
 
+/// Represents a service configuration that can be saved to disk
+struct ServiceConfig: Codable {
+    let name: String
+    let url: String
+}
+
 /// Controls the status bar menu and service monitoring
 class StatusBarController: NSObject, ObservableObject {
-    @Published var services: [ServiceStatus] = getDefaultServices()
+    @Published var services: [ServiceStatus] = loadServicesFromFile()
     @Published var updateInterval: TimeInterval = {
         let savedInterval = UserDefaults.standard.double(forKey: "UpdateInterval")
         return savedInterval > 0 ? savedInterval : 5.0
@@ -279,6 +286,64 @@ class StatusBarController: NSObject, ObservableObject {
         finalImage.isTemplate = false  // Enable colored warning indicator
         
         button.image = finalImage
+    }
+
+    private static func getConfigPath() -> URL? {
+        guard let configDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        return configDir.appendingPathComponent("ServiceChecker/services.json")
+    }
+    
+    private static func loadServicesFromFile() -> [ServiceStatus] {
+        guard let configPath = getConfigPath() else {
+            print("Could not determine config path")
+            return getDefaultServices()
+        }
+        
+        print("Config path: \(configPath.path)")
+        
+        do {
+            // Create directory if it doesn't exist
+            try FileManager.default.createDirectory(at: configPath.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+            print("Created/verified directory at: \(configPath.deletingLastPathComponent().path)")
+            
+            // If file doesn't exist, create it with default services
+            if !FileManager.default.fileExists(atPath: configPath.path) {
+                print("Config file doesn't exist, creating with defaults")
+                let defaultServices = getDefaultServices()
+                let configs = defaultServices.map { ServiceConfig(name: $0.name, url: $0.url) }
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+                let data = try encoder.encode(configs)
+                try data.write(to: configPath)
+                print("Created config file at: \(configPath.path)")
+                return defaultServices
+            }
+            
+            print("Reading existing config file")
+            // Read and parse existing file
+            let data = try Data(contentsOf: configPath)
+            let decoder = JSONDecoder()
+            let configs = try decoder.decode([ServiceConfig].self, from: data)
+            
+            return configs.map { config in
+                ServiceStatus(name: config.name, url: config.url, status: false)
+            }
+        } catch {
+            print("Error loading services: \(error)")
+            return getDefaultServices()
+        }
+    }
+}
+
+// Move getDefaultServices() to be a static function inside StatusBarController
+extension StatusBarController {
+    private static func getDefaultServices() -> [ServiceStatus] {
+        return [
+            ServiceStatus(name: "Local Server", url: "http://localhost:8080", status: false)
+        ]
     }
 }
 
