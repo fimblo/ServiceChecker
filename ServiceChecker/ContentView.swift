@@ -41,7 +41,9 @@ class StatusBarController: NSObject, ObservableObject {
     private func setupStatusBar() {
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusBarItem.button {
-            button.title = "❓"
+            button.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Service Status")
+            // Optionally set the image to template mode for proper menu bar appearance
+            button.image?.isTemplate = true
         }
         menu = NSMenu()
         statusBarItem.menu = menu
@@ -77,11 +79,33 @@ class StatusBarController: NSObject, ObservableObject {
 
         DispatchQueue.main.async { [weak self] in
             if let button = self?.statusBarItem.button {
-                if upCount == self?.services.count {
-                    button.title = "Services:✅"
-                } else {
-                    button.title = "Services: \(upCount)/\(self?.services.count ?? 0)"
+
+                // Create composite image
+                let configuration = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+                let serverImage = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Server Status")?
+                    .withSymbolConfiguration(configuration)
+                
+                // Create a new image context
+                let finalImage = NSImage(size: NSSize(width: 18, height: 18))
+                finalImage.lockFocus()
+                
+                // Draw server icon (in template mode)
+                serverImage?.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
+                
+                // Draw warning indicator if there's a problem
+                if upCount != self?.services.count {
+                    let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
+                        .applying(.init(paletteColors: [.systemRed]))
+                    let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
+                        .withSymbolConfiguration(statusConfiguration)
+                    
+                    statusImage?.draw(in: NSRect(x: 8, y: 0, width: 10, height: 10))
                 }
+                
+                finalImage.unlockFocus()
+                finalImage.isTemplate = false  // Allow colors to show
+                
+                button.image = finalImage
             }
             self?.buildMenu()
         }
