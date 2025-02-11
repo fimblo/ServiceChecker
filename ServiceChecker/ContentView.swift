@@ -374,6 +374,49 @@ struct ContentView: View {
             Text("Service monitoring is active in the status bar.")
                 .padding()
             
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Configuration")
+                    .font(.headline)
+                
+                Text("Server names and URLs can be manually configured in:")
+                    .padding(.top, 4)
+                
+                ScrollView {
+                    Text("""
+                    ~/Library/Containers/org.yanson.ServiceChecker/Data/ \\\\
+                        Library/Application Support/ServiceChecker/services.json
+                    """)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                }
+                .frame(height: 60)  // Fixed height to show all content
+                .padding(8)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(4)
+                
+                Text("Format:")
+                    .padding(.top, 4)
+                
+                ScrollView {
+                    Text("""
+                    [
+                      {
+                        "name": "Server name",
+                        "url": "http://host:port/path"
+                      }
+                      // multiple servers supported
+                    ]
+                    """)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                }
+                .frame(height: 130)  // Fixed height to show all content
+                .padding(8)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
             Toggle("Don't show this window at startup", isOn: $dontShowAgain)
                 .onChange(of: dontShowAgain) { oldValue, newValue in
                     UserDefaults.standard.set(newValue, forKey: "HideStartupWindow")
@@ -384,6 +427,6 @@ struct ContentView: View {
             }
         }
         .padding()
-        .frame(width: 300)
+        .frame(width: 600)  // Increased width even more
     }
 }
