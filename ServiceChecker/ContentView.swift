@@ -216,33 +216,34 @@ class StatusBarController: NSObject, ObservableObject {
         }
     }
 
-    /// Checks if a service endpoint is healthy using curl
+    /// Checks if a service endpoint is healthy
     /// - Parameter url: The health check URL
     /// - Returns: Tuple of (output string, status code) where 0 means success
     private func checkServiceHealth(_ url: String) -> (String, Int) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
-        task.arguments = ["-o", "/dev/null", "-s", "-w", "%{http_code}\\n", url]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            task.waitUntilExit()
-            
-            if let statusCode = Int(output.trimmingCharacters(in:.whitespacesAndNewlines)),
-               (200...299).contains(statusCode) {
-                return ("", 0)
-            }
-            return ("", 1)
-        } catch {
-            print("Error checking service health: \(error)")
-            return ("", 1)
+        guard let serviceURL = URL(string: url) else {
+            return ("Invalid URL", 1)
         }
+        
+        var result = (output: "", status: 1)
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        let task = URLSession.shared.dataTask(with: serviceURL) { _, response, error in
+            defer { semaphore.signal() }
+            
+            if error != nil {
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse,
+               (200...299).contains(httpResponse.statusCode) {
+                result = ("", 0)
+            }
+        }
+        
+        task.resume()
+        semaphore.wait()
+        
+        return result
     }
 
     /// Updates the status bar icon based on service health
