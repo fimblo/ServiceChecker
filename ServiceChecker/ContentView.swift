@@ -148,6 +148,12 @@ class StatusBarController: NSObject, ObservableObject {
         
         // Add separator and preferences
         menu.addItem(NSMenuItem.separator())
+        
+        // Add Open Config Directory item
+        let openConfigItem = NSMenuItem(title: "Open Config Directory", action: #selector(openConfigDirectory), keyEquivalent: "")
+        openConfigItem.target = self
+        menu.addItem(openConfigItem)
+        
         let prefsItem = NSMenuItem(title: "Preferences...", action: #selector(showPreferences), keyEquivalent: ",")
         prefsItem.target = self
         menu.addItem(prefsItem)
@@ -207,6 +213,15 @@ class StatusBarController: NSObject, ObservableObject {
         if let window = NSApp.windows.first(where: { $0.title.contains("Settings") }) {
             window.makeKeyAndOrderFront(nil)
         }
+    }
+
+    /// Opens the configuration directory in Finder
+    @objc private func openConfigDirectory() {
+        let fileManager = FileManager.default
+        guard let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        let configDirURL = appSupportURL.appendingPathComponent("ServiceChecker")
+        
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: configDirURL.path)
     }
 }
 
