@@ -19,8 +19,6 @@ struct ServiceCheckerApp: App {
     }
     
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+        Settings { }  // Empty settings scene prevents window from showing
     }
 }

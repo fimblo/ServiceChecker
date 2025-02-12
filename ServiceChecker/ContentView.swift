@@ -206,12 +206,3 @@ class StatusBarController: NSObject, ObservableObject {
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: configDirURL.path)
     }
 }
-
-/// Main content view
-struct ContentView: View {
-    var body: some View {
-        Text("Service monitoring is active in the status bar.")
-            .padding()
-            .frame(width: 300)
-    }
-}
