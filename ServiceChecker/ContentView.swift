@@ -146,17 +146,13 @@ class StatusBarController: NSObject, ObservableObject {
         sliderItem.view = sliderView
         menu.addItem(sliderItem)
         
-        // Add separator and preferences
+        // Add separator and config directory
         menu.addItem(NSMenuItem.separator())
         
         // Add Open Config Directory item
         let openConfigItem = NSMenuItem(title: "Open Config Directory", action: #selector(openConfigDirectory), keyEquivalent: "")
         openConfigItem.target = self
         menu.addItem(openConfigItem)
-        
-        let prefsItem = NSMenuItem(title: "Preferences...", action: #selector(showPreferences), keyEquivalent: ",")
-        prefsItem.target = self
-        menu.addItem(prefsItem)
         
         // Add quit item
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -227,67 +223,9 @@ class StatusBarController: NSObject, ObservableObject {
 
 /// Main content view
 struct ContentView: View {
-    @State private var dontShowAgain = UserDefaults.standard.bool(forKey: "HideStartupWindow")
-    @Environment(\.dismiss) private var dismiss
-    
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Service monitoring is active in the status bar.")
-                .padding()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Configuration")
-                    .font(.headline)
-                
-                Text("Server names and URLs can be manually configured in:")
-                    .padding(.top, 4)
-                
-                ScrollView {
-                    Text("""
-                    ~/Library/Containers/org.yanson.ServiceChecker/Data/ \\\\
-                        Library/Application Support/ServiceChecker/services.json
-                    """)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                }
-                .frame(height: 60)  // Fixed height to show all content
-                .padding(8)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(4)
-                
-                Text("Format:")
-                    .padding(.top, 4)
-                
-                ScrollView {
-                    Text("""
-                    [
-                      {
-                        "name": "Server name",
-                        "url": "http://host:port/path"
-                      }
-                      // multiple servers supported
-                    ]
-                    """)
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                }
-                .frame(height: 130)  // Fixed height to show all content
-                .padding(8)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(4)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Toggle("Don't show this window at startup", isOn: $dontShowAgain)
-                .onChange(of: dontShowAgain) { oldValue, newValue in
-                    UserDefaults.standard.set(newValue, forKey: "HideStartupWindow")
-                }
-            
-            Button("Close") {
-                dismiss()
-            }
-        }
-        .padding()
-        .frame(width: 600)  // Increased width even more
+        Text("Service monitoring is active in the status bar.")
+            .padding()
+            .frame(width: 300)
     }
 }
