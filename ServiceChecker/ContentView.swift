@@ -25,7 +25,7 @@ struct ServiceConfig: Codable {
 
 /// Controls the status bar menu and service monitoring
 class StatusBarController: NSObject, ObservableObject {
-    @Published var services: [ServiceStatus] = loadServicesFromFile()
+    @Published var services: [ServiceStatus] = ServiceUtils.loadServicesFromFile()
     @Published var updateInterval: TimeInterval = {
         let savedInterval = UserDefaults.standard.double(forKey: "UpdateInterval")
         return savedInterval > 0 ? savedInterval : 5.0
@@ -82,7 +82,7 @@ class StatusBarController: NSObject, ObservableObject {
     func updateServiceStatuses() {
         let upCount = services.indices.reduce(0) { count, index in
             let service = services[index]
-            let (errorMessage, status) = checkServiceHealth(service.url)
+            let (errorMessage, status) = ServiceUtils.checkHealth(service.url)
             DispatchQueue.main.async {
                 self.services[index].status = status == 0
                 // Store error message if there is one
@@ -232,36 +232,6 @@ class StatusBarController: NSObject, ObservableObject {
         }
     }
 
-    /// Checks if a service endpoint is healthy
-    /// - Parameter url: The health check URL
-    /// - Returns: Tuple of (output string, status code) where 0 means success
-    private func checkServiceHealth(_ url: String) -> (String, Int) {
-        guard let serviceURL = URL(string: url) else {
-            return ("Invalid URL", 1)
-        }
-        
-        var result = (output: "", status: 1)
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        let task = URLSession.shared.dataTask(with: serviceURL) { _, response, error in
-            defer { semaphore.signal() }
-            
-            if error != nil {
-                return
-            }
-            
-            if let httpResponse = response as? HTTPURLResponse,
-               (200...299).contains(httpResponse.statusCode) {
-                result = ("", 0)
-            }
-        }
-        
-        task.resume()
-        semaphore.wait()
-        
-        return result
-    }
-
     /// Updates the status bar icon based on service health
     private func updateStatusBarIcon(button: NSStatusBarButton, upCount: Int) {
         // Create composite image
@@ -291,55 +261,6 @@ class StatusBarController: NSObject, ObservableObject {
         button.image = finalImage
     }
 
-    private static func getConfigPath() -> URL? {
-        guard let configDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        return configDir.appendingPathComponent("ServiceChecker/services.json")
-    }
-    
-    private static func loadServicesFromFile() -> [ServiceStatus] {
-        guard let configPath = getConfigPath() else {
-            print("Could not determine config path")
-            return getDefaultServices()
-        }
-        
-        print("Config path: \(configPath.path)")
-        
-        do {
-            // Create directory if it doesn't exist
-            try FileManager.default.createDirectory(at: configPath.deletingLastPathComponent(),
-                                                 withIntermediateDirectories: true)
-            print("Created/verified directory at: \(configPath.deletingLastPathComponent().path)")
-            
-            // If file doesn't exist, create it with default services
-            if !FileManager.default.fileExists(atPath: configPath.path) {
-                print("Config file doesn't exist, creating with defaults")
-                let defaultServices = getDefaultServices()
-                let configs = defaultServices.map { ServiceConfig(name: $0.name, url: $0.url) }
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
-                let data = try encoder.encode(configs)
-                try data.write(to: configPath)
-                print("Created config file at: \(configPath.path)")
-                return defaultServices
-            }
-            
-            print("Reading existing config file")
-            // Read and parse existing file
-            let data = try Data(contentsOf: configPath)
-            let decoder = JSONDecoder()
-            let configs = try decoder.decode([ServiceConfig].self, from: data)
-            
-            return configs.map { config in
-                ServiceStatus(name: config.name, url: config.url, status: false)
-            }
-        } catch {
-            print("Error loading services: \(error)")
-            return getDefaultServices()
-        }
-    }
-
     @objc private func showPreferences() {
         // Switch to regular mode and activate app
         NSApp.setActivationPolicy(.regular)
@@ -352,15 +273,6 @@ class StatusBarController: NSObject, ObservableObject {
         if let window = NSApp.windows.first(where: { $0.title.contains("Settings") }) {
             window.makeKeyAndOrderFront(nil)
         }
-    }
-}
-
-// Move getDefaultServices() to be a static function inside StatusBarController
-extension StatusBarController {
-    private static func getDefaultServices() -> [ServiceStatus] {
-        return [
-            ServiceStatus(name: "Local Server", url: "http://localhost:8080", status: false)
-        ]
     }
 }
 
