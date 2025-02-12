@@ -7,86 +7,47 @@
 import SwiftUI
 import AppKit
 import Foundation
+import Combine
 
 /// Controls the status bar menu and service monitoring
 class StatusBarController: NSObject, ObservableObject {
-    @Published var services: [ServiceStatus] = ServiceUtils.loadServicesFromFile()
-    @Published var updateInterval: TimeInterval = {
-        let savedInterval = UserDefaults.standard.double(forKey: "UpdateInterval")
-        return savedInterval > 0 ? savedInterval : 5.0
-    }() {
-        didSet {
-            UserDefaults.standard.set(updateInterval, forKey: "UpdateInterval")
-            restartMonitoring()
-        }
-    }
-    private var nextUpdateTime: Date = Date()
-    
+    private let viewModel: StatusBarViewModel
     private var statusBarItem: NSStatusItem!
     private var menu: NSMenu!
-    private var updateTimer: Timer?
-
+    private var cancellables = Set<AnyCancellable>()
+    
     override init() {
+        self.viewModel = StatusBarViewModel()
         super.init()
+        
         DispatchQueue.main.async { [weak self] in
             self?.setupStatusBar()
-            self?.startMonitoring()
         }
     }
-
+    
     /// Sets up the status bar item and menu
     private func setupStatusBar() {
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusBarItem.button {
-            button.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Service Status")
-            // Optionally set the image to template mode for proper menu bar appearance
-            button.image?.isTemplate = true
+            let configuration = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+            button.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Service Status")?
+                .withSymbolConfiguration(configuration)
+            button.imagePosition = .imageLeft
+            //button.imageScaling = .scaleProportionallyDown
         }
         menu = NSMenu()
         statusBarItem.menu = menu
-    }
-
-    /// Starts the periodic monitoring of services
-    private func startMonitoring() {
-        updateServiceStatuses() // Initial check
-        nextUpdateTime = Date().addingTimeInterval(updateInterval)
         
-        updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
-            self?.updateServiceStatuses()
-            self?.nextUpdateTime = Date().addingTimeInterval(self?.updateInterval ?? 5.0)
-        }
-    }
-
-    /// Restarts monitoring with new interval
-    private func restartMonitoring() {
-        updateTimer?.invalidate()
-        startMonitoring()
-    }
-
-    /// Updates the status of all services and refreshes the menu
-    func updateServiceStatuses() {
-        let upCount = services.indices.reduce(0) { count, index in
-            let service = services[index]
-            let (errorMessage, status) = ServiceUtils.checkHealth(service.url)
-            DispatchQueue.main.async {
-                self.services[index].status = status == 0
-                // Store error message if there is one
-                if !errorMessage.isEmpty {
-                    self.services[index].lastError = errorMessage
-                }
-            }
-            return count + (status == 0 ? 1 : 0)
-        }
-
-        // Update the status bar icon
-        DispatchQueue.main.async { [weak self] in
-            if let button = self?.statusBarItem.button {
-                self?.updateStatusBarIcon(button: button, upCount: upCount)
-            }
+        // Observe changes to rebuild menu
+        viewModel.$services.sink { [weak self] _ in
             self?.buildMenu()
-        }
+        }.store(in: &cancellables)
+        
+        viewModel.$nextUpdateTime.sink { [weak self] _ in
+            self?.buildMenu()
+        }.store(in: &cancellables)
     }
-
+    
     /// Rebuilds the status bar menu with current service statuses
     private func buildMenu() {
         menu.removeAllItems()
@@ -105,7 +66,7 @@ class StatusBarController: NSObject, ObservableObject {
         let timeLabel = NSTextField(frame: NSRect(x: 120, y: 0, width: 100, height: 20))
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
-        timeLabel.stringValue = formatter.string(from: nextUpdateTime)
+        timeLabel.stringValue = formatter.string(from: viewModel.nextUpdateTime)
         timeLabel.isEditable = false
         timeLabel.isBordered = false
         timeLabel.backgroundColor = NSColor.clear
@@ -120,7 +81,7 @@ class StatusBarController: NSObject, ObservableObject {
         menu.addItem(NSMenuItem.separator())
         
         // Add services status items
-        services.forEach { service in
+        viewModel.services.forEach { service in
             let statusSymbol = service.status ? "✅" : "❌"
             let menuItem = NSMenuItem()
             
@@ -147,7 +108,7 @@ class StatusBarController: NSObject, ObservableObject {
         let sliderView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 50))  // Increased width to 240
         
         let label = NSTextField(frame: NSRect(x: 20, y: 30, width: 200, height: 20))  // Increased width to 200
-        label.stringValue = "Update interval: \(Int(updateInterval))s"
+        label.stringValue = "Update interval: \(Int(viewModel.updateInterval))s"
         label.isEditable = false
         label.isBordered = false
         label.backgroundColor = .clear
@@ -171,7 +132,7 @@ class StatusBarController: NSObject, ObservableObject {
         let slider = NSSlider(frame: NSRect(x: 20, y: 15, width: 200, height: 20))  // Increased width to 200
         slider.minValue = 0
         slider.maxValue = 12
-        slider.doubleValue = intervalToSliderPosition(updateInterval)
+        slider.doubleValue = viewModel.intervalToSliderPosition(viewModel.updateInterval)
         slider.target = self
         slider.action = #selector(sliderChanged(_:))
         slider.numberOfTickMarks = 13
@@ -196,22 +157,10 @@ class StatusBarController: NSObject, ObservableObject {
         menu.addItem(quitItem)
     }
 
-    /// Converts a slider position (0-12) to seconds (1-60)
-    private func sliderPositionToInterval(_ position: Double) -> TimeInterval {
-        if position == 0 { return 1 }
-        return TimeInterval(position * 5)
-    }
-    
-    /// Converts time interval in seconds to nearest slider position
-    private func intervalToSliderPosition(_ interval: TimeInterval) -> Double {
-        if interval <= 1 { return 0 }
-        return round(interval / 5)
-    }
-    
     /// Handles slider value changes and updates the UI
     @objc private func sliderChanged(_ sender: NSSlider) {
-        let newInterval = sliderPositionToInterval(sender.doubleValue)
-        updateInterval = newInterval
+        let newInterval = viewModel.sliderPositionToInterval(sender.doubleValue)
+        viewModel.updateInterval(newInterval)
         if let label = sender.superview?.subviews.first as? NSTextField {
             label.stringValue = "Update interval: \(Int(newInterval))s"
         }
@@ -231,7 +180,7 @@ class StatusBarController: NSObject, ObservableObject {
         serverImage?.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
         
         // Add red warning indicator if any service is down
-        if upCount != services.count {
+        if upCount != viewModel.services.count {
             let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
                 .applying(.init(paletteColors: [.systemRed]))
             let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
