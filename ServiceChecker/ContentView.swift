@@ -197,20 +197,6 @@ class StatusBarController: NSObject, ObservableObject {
         button.image = finalImage
     }
 
-    @objc private func showPreferences() {
-        // Switch to regular mode and activate app
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        
-        // Show settings window
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        
-        // Ensure window is visible and active
-        if let window = NSApp.windows.first(where: { $0.title.contains("Settings") }) {
-            window.makeKeyAndOrderFront(nil)
-        }
-    }
-
     /// Opens the configuration directory in Finder
     @objc private func openConfigDirectory() {
         let fileManager = FileManager.default

@@ -19,7 +19,7 @@ struct ServiceCheckerApp: App {
     }
     
     var body: some Scene {
-        Settings {
+        WindowGroup {
             ContentView()
         }
     }
