@@ -5,8 +5,13 @@ class ServiceUtils {
     /// - Parameter url: The health check URL
     /// - Returns: Tuple of (output string, status code) where 0 means success
     static func checkHealth(_ url: String) -> (String, Int) {
-        guard let serviceURL = URL(string: url) else {
-            return ("Invalid URL", 1)
+        // Convert localhost to 127.0.0.1 to force IPv4
+        // Avoiding ipv6 for non-local connections is out of scope for now - there
+        // will be errors in the console if the service is not reachable over ipv6.
+        let ipv4Url = url.replacingOccurrences(of: "localhost", with: "127.0.0.1")
+        
+        guard let serviceURL = URL(string: ipv4Url) else {
+            return ("Invalid URL: \(url)", 1)
         }
         
         var result = (output: "", status: 1)
