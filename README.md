@@ -1,8 +1,24 @@
 # ServiceChecker
 
-ServiceChecker is a macOS status bar application that monitors the health of web services.
-The services' statuses are visible in your menu bar, making it easy to keep track of your
-services' availability.
+ServiceChecker is a macOS status bar application that monitors the health
+of web services. The services' statuses are visible in your menu bar, making
+it easy to keep track of your services' availability.
+
+<p align="center">
+  <img
+    alt="ServiceChecker Up"
+    width="248"
+    height="249"
+    src="/.docs/ServiceChecker-up.png"
+  >
+  <img
+    alt="ServiceChecker Down"
+    width="248"
+    height="249"
+    src="/.docs/ServiceChecker-down.png"
+  >
+</p>
+
 
 ## Features
 
@@ -26,21 +42,13 @@ Note: After the first launch using these steps, you can open the app normally by
 
 ### Services Configuration
 
-The list of services is configured by modifying the `services.json` file.
+Finding the configuration file:
+1. Open the app
+2. Click on the status bar icon
+3. Click on "Open Config Directory"
+4. Read the instructions in the README.md file
 
-The app runs in a sandbox, and the root of the sandox is `~/Library/Containers/org.yanson.ServiceChecker/Data`. 
-`services.json` is located at: 
-
-```
-$SANDBOX_ROOT/Library/Application Support/ServiceChecker/services.json
-```
 
 ## Known Issues
 
-- Pressing Preferences... does not work. It will raise the app to the foreground, and you will need to go to ServiceChecker->Settings manually.
-- The "do not show again" checkbox does not work well. It works the first time, but if you mark that you want to see the window again, it will not show. You have to either run `defaults delete org.yanson.ServiceChecker` or open it manually.
-- Since the app is unsigned and not notarized:
-  - macOS will show a security warning on first launch
-  - Users will need to use the right-click > Open method for first launch
-  - Some organizations might block unsigned apps by policy
-
+See the GitHub issues page: https://github.com/fimblo/ServiceChecker/issues
