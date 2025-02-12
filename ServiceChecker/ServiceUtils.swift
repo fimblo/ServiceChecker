@@ -43,14 +43,33 @@ class ServiceUtils {
             return getDefaultServices()
         }
         
-        print("Config path: \(configPath.path)")
-        
         do {
+            let configDir = configPath.deletingLastPathComponent()
             // Create directory if it doesn't exist
-            try FileManager.default.createDirectory(at: configPath.deletingLastPathComponent(),
+            try FileManager.default.createDirectory(at: configDir,
                                                  withIntermediateDirectories: true)
-            print("Created/verified directory at: \(configPath.deletingLastPathComponent().path)")
             
+            // Create/overwrite README.txt
+            let readmePath = configDir.appendingPathComponent("README.txt")
+            let readmeContent = """
+            This is the ServiceChecker configuration directory.
+            
+            The services.json file contains the list of services to monitor.
+            Each service should have a name and a health check URL.
+
+            The format is:
+            [
+                {
+                    "name": "Service Name",
+                    "url": 'http://localhost:8080/path/to/health/check'
+                }
+            ]
+
+            The service is considered up if the health check URL returns a 200
+            status code.
+
+            """
+            try readmeContent.write(to: readmePath, atomically: true, encoding: .utf8)
             // If file doesn't exist, create it with default services
             if !FileManager.default.fileExists(atPath: configPath.path) {
                 print("Config file doesn't exist, creating with defaults")
