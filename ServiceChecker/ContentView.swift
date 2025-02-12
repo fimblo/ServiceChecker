@@ -15,6 +15,7 @@ class StatusBarController: NSObject, ObservableObject {
     private var statusBarItem: NSStatusItem!
     private var menu: NSMenu!
     private var cancellables = Set<AnyCancellable>()
+    private lazy var aboutWindowController = AboutWindowController()
     
     override init() {
         self.viewModel = StatusBarViewModel()
@@ -153,7 +154,12 @@ class StatusBarController: NSObject, ObservableObject {
         let openConfigItem = NSMenuItem(title: "Open Config Directory", action: #selector(openConfigDirectory), keyEquivalent: "")
         openConfigItem.target = self
         menu.addItem(openConfigItem)
-        
+
+        // Add About item
+        let aboutItem = NSMenuItem(title: "About ServiceChecker", action: #selector(showAboutWindow), keyEquivalent: "")
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+
         // Add quit item
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
@@ -204,5 +210,10 @@ class StatusBarController: NSObject, ObservableObject {
         let configDirURL = appSupportURL.appendingPathComponent("ServiceChecker")
         
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: configDirURL.path)
+    }
+
+    @objc private func showAboutWindow() {
+        aboutWindowController.showWindow(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }
