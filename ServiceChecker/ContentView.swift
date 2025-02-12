@@ -39,8 +39,12 @@ class StatusBarController: NSObject, ObservableObject {
         menu = NSMenu()
         statusBarItem.menu = menu
         
-        // Observe changes to rebuild menu
-        viewModel.$services.sink { [weak self] _ in
+        // Observe changes to rebuild menu and update icon
+        viewModel.$services.sink { [weak self] services in
+            if let button = self?.statusBarItem.button {
+                let upCount = services.filter { $0.status }.count
+                self?.updateStatusBarIcon(button: button, upCount: upCount)
+            }
             self?.buildMenu()
         }.store(in: &cancellables)
         
