@@ -17,7 +17,11 @@ class ServiceUtils {
         var result = (output: "", status: 1)
         let semaphore = DispatchSemaphore(value: 0)
         
-        let task = URLSession.shared.dataTask(with: serviceURL) { _, response, error in
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 5 // seconds
+        let session = URLSession(configuration: config)
+        
+        let task = session.dataTask(with: serviceURL) { _, response, error in
             defer { semaphore.signal() }
             
             if error != nil {
