@@ -189,8 +189,17 @@ class StatusBarController: NSObject, ObservableObject {
     private func updateStatusBarIcon(button: NSStatusBarButton, upCount: Int) {
         // Create composite image
         let configuration = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        
+        // Choose icon color based on monitoring state
+        let serverConfiguration: NSImage.SymbolConfiguration
+        if isMonitoringEnabled {
+            serverConfiguration = configuration
+        } else {
+            serverConfiguration = configuration.applying(.init(paletteColors: [.secondaryLabelColor]))
+        }
+        
         let serverImage = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Server Status")?
-            .withSymbolConfiguration(configuration)
+            .withSymbolConfiguration(serverConfiguration)
         
         let finalImage = NSImage(size: NSSize(width: 18, height: 18))
         finalImage.lockFocus()
@@ -198,8 +207,8 @@ class StatusBarController: NSObject, ObservableObject {
         // Draw base server icon
         serverImage?.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
         
-        // Add red warning indicator if any service is down
-        if upCount != viewModel.services.count {
+        // Add red warning indicator only if monitoring is enabled and there are down services
+        if isMonitoringEnabled && upCount != viewModel.services.count {
             let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
                 .applying(.init(paletteColors: [.systemRed]))
             let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
@@ -209,7 +218,7 @@ class StatusBarController: NSObject, ObservableObject {
         }
         
         finalImage.unlockFocus()
-        finalImage.isTemplate = false  // Enable colored warning indicator
+        finalImage.isTemplate = false
         
         button.image = finalImage
     }
@@ -230,13 +239,20 @@ class StatusBarController: NSObject, ObservableObject {
 
     @objc private func toggleMonitoring() {
         isMonitoringEnabled.toggle()
-        // Update the checkbox state and rebuild menu to update service appearances
+        // Update the checkbox state
         if let toggleItem = menu.items.first,
            let itemView = toggleItem.view,
            let checkbox = itemView.subviews.last as? NSButton {
             checkbox.state = isMonitoringEnabled ? .on : .off
         }
-        buildMenu()  // Rebuild entire menu to update service appearances
+        
+        // Explicitly update the status bar icon
+        if let button = statusBarItem.button {
+            let upCount = viewModel.services.filter { $0.status }.count
+            updateStatusBarIcon(button: button, upCount: upCount)
+        }
+        
+        buildMenu()  // Rebuild menu to update service appearances
     }
 }
 
