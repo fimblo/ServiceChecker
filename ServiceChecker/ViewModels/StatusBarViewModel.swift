@@ -69,6 +69,25 @@ class StatusBarViewModel: ObservableObject {
         updateTimer = nil
     }
     
+    /// Reloads the configuration from disk and updates the view model
+    func reloadConfiguration() {
+        if let newConfig = AppConfig.shared {
+            // Reset all services with unknown status
+            self.services = newConfig.services.map { config in
+                ServiceStatus(name: config.name, url: config.url, status: false, lastError: "Checking...")
+            }
+            self.updateInterval = newConfig.updateIntervalSeconds
+            
+            // Immediately check statuses before starting the timer
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                _ = self?.updateServiceStatuses()
+                DispatchQueue.main.async {
+                    self?.startMonitoring()
+                }
+            }
+        }
+    }
+    
     deinit {
         updateTimer?.invalidate()
     }

@@ -140,6 +140,11 @@ class StatusBarController: NSObject, ObservableObject {
 
         configureMenu.addItem(intervalItem)
 
+        // Add Reload Configuration option
+        let reloadConfigItem = NSMenuItem(title: "Reload Configuration", action: #selector(reloadConfiguration), keyEquivalent: "r")
+        reloadConfigItem.target = self
+        configureMenu.addItem(reloadConfigItem)
+
         // Add Open Config Directory to the submenu
         let openConfigItem = NSMenuItem(title: "Open Config Directory", action: #selector(openConfigDirectory), keyEquivalent: "")
         openConfigItem.target = self
@@ -237,6 +242,30 @@ class StatusBarController: NSObject, ObservableObject {
         if let intervalMenu = sender.menu {
             for item in intervalMenu.items {
                 item.state = (item == sender) ? .on : .off
+            }
+        }
+    }
+
+    @objc private func reloadConfiguration() {
+        ServiceUtils.loadConfiguration()
+        viewModel.reloadConfiguration()
+        
+        // Force menu rebuild to update statuses
+        buildMenu()
+        
+        // Explicitly update the status bar icon
+        if let button = statusBarItem.button {
+            let upCount = viewModel.services.filter { $0.status }.count
+            updateStatusBarIcon(button: button, upCount: upCount)
+        }
+        
+        // Update the interval menu items to reflect any changes
+        if let configureItem = menu.items.first(where: { $0.title == "Configure" }),
+           let configureMenu = configureItem.submenu,
+           let intervalItem = configureMenu.items.first(where: { $0.title == "Update Interval" }),
+           let intervalMenu = intervalItem.submenu {
+            for item in intervalMenu.items {
+                item.state = item.tag == Int(viewModel.updateInterval) ? .on : .off
             }
         }
     }
