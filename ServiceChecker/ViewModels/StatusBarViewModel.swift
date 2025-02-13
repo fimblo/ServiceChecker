@@ -68,6 +68,19 @@ class StatusBarViewModel: ObservableObject {
         return round(interval / 5)
     }
     
+    func setMonitoring(enabled: Bool) {
+        if enabled {
+            startMonitoring()
+        } else {
+            stopMonitoring()
+        }
+    }
+    
+    private func stopMonitoring() {
+        updateTimer?.invalidate()
+        updateTimer = nil
+    }
+    
     deinit {
         updateTimer?.invalidate()
     }

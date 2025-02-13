@@ -16,6 +16,11 @@ class StatusBarController: NSObject, ObservableObject {
     private var menu: NSMenu!
     private var cancellables = Set<AnyCancellable>()
     private lazy var aboutWindowController = AboutWindowController()
+    @objc private var isMonitoringEnabled: Bool = true {
+        didSet {
+            viewModel.setMonitoring(enabled: isMonitoringEnabled)
+        }
+    }
     
     override init() {
         self.viewModel = StatusBarViewModel()
@@ -52,6 +57,23 @@ class StatusBarController: NSObject, ObservableObject {
     /// Rebuilds the status bar menu with current service statuses
     private func buildMenu() {
         menu.removeAllItems()
+        
+        // Add monitoring toggle
+        let toggleItem = NSMenuItem()
+        let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+        
+        let checkbox = NSButton(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
+        checkbox.title = "Enable Monitoring"
+        checkbox.setButtonType(.switch)
+        checkbox.state = isMonitoringEnabled ? .on : .off
+        checkbox.target = self
+        checkbox.action = #selector(toggleMonitoring)
+        
+        itemView.addSubview(checkbox)
+        toggleItem.view = itemView
+        menu.addItem(toggleItem)
+        
+        menu.addItem(NSMenuItem.separator())
         
         // Add services status items
         viewModel.services.forEach { service in
@@ -188,4 +210,15 @@ class StatusBarController: NSObject, ObservableObject {
         aboutWindowController.showWindow(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
+
+    @objc private func toggleMonitoring() {
+        isMonitoringEnabled.toggle()
+        // Update the checkbox state
+        if let toggleItem = menu.items.first,
+           let itemView = toggleItem.view,
+           let checkbox = itemView.subviews.first as? NSButton {
+            checkbox.state = isMonitoringEnabled ? .on : .off
+        }
+    }
 }
+
