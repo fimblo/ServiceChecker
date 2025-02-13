@@ -62,13 +62,23 @@ class StatusBarController: NSObject, ObservableObject {
         let toggleItem = NSMenuItem()
         let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
         
-        let checkbox = NSButton(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
-        checkbox.title = "Enable Monitoring"
+        // Add label on the left
+        let monitoringLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 160, height: 20))
+        monitoringLabel.stringValue = "Enable Monitoring"
+        monitoringLabel.isEditable = false
+        monitoringLabel.isBordered = false
+        monitoringLabel.backgroundColor = .clear
+        monitoringLabel.textColor = .labelColor
+        
+        // Add switch on the right (moved further right)
+        let checkbox = NSButton(frame: NSRect(x: 200, y: 0, width: 40, height: 20))
+        checkbox.title = ""  // Remove title since we have the separate label
         checkbox.setButtonType(.switch)
         checkbox.state = isMonitoringEnabled ? .on : .off
         checkbox.target = self
         checkbox.action = #selector(toggleMonitoring)
         
+        itemView.addSubview(monitoringLabel)
         itemView.addSubview(checkbox)
         toggleItem.view = itemView
         menu.addItem(toggleItem)
