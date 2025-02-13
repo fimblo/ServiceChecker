@@ -1,5 +1,17 @@
 import Foundation
 
+// Add this new struct at the top level
+struct AppConfig {
+    var services: [ServiceConfig]
+    
+    static var shared: AppConfig?
+}
+
+// New JSON structure
+struct ConfigFile: Codable {
+    var services: [ServiceConfig]
+}
+
 class ServiceUtils {
     /// Checks if a service endpoint is healthy
     /// - Parameter url: The health check URL
@@ -40,16 +52,18 @@ class ServiceUtils {
         return result
     }
     
-    /// Loads service configurations from file
-    static func loadServicesFromFile() -> [ServiceStatus] {
+    /// Loads service configurations from file into global config
+    static func loadConfiguration() {
         guard let configPath = getConfigPath() else {
             print("Could not determine config path")
-            return getDefaultServices()
+            AppConfig.shared = AppConfig(services: getDefaultServices().map { 
+                ServiceConfig(name: $0.name, url: $0.url)
+            })
+            return
         }
         
         do {
             let configDir = configPath.deletingLastPathComponent()
-            // Create directory if it doesn't exist
             try FileManager.default.createDirectory(at: configDir,
                                                  withIntermediateDirectories: true)
             
@@ -58,55 +72,72 @@ class ServiceUtils {
             let readmeContent = """
             This is the ServiceChecker configuration directory.
             
-            The services.json file contains the list of services to monitor.
+            The config.json file contains the configuration for ServiceChecker.
+            The 'services' section contains the list of services to monitor.
             Each service should have a name and a health check URL.
 
             The format is:
-            [
-                {
-                    "name": "Service Name",
-                    "url": 'http://localhost:8080/path/to/health/check'
-                }
-            ]
+            {
+                "services": [
+                    {
+                        "name": "Service Name",
+                        "url": "http://localhost:8080/path/to/health/check"
+                    }
+                ]
+            }
 
             The service is considered up if the health check URL returns a 200
             status code.
 
             """
             try readmeContent.write(to: readmePath, atomically: true, encoding: .utf8)
-            // If file doesn't exist, create it with default services
+            
+            // Create default config if file doesn't exist
             if !FileManager.default.fileExists(atPath: configPath.path) {
                 print("Config file doesn't exist, creating with defaults")
                 let defaultServices = getDefaultServices()
                 let configs = defaultServices.map { ServiceConfig(name: $0.name, url: $0.url) }
+                let configFile = ConfigFile(services: configs)
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
-                let data = try encoder.encode(configs)
+                let data = try encoder.encode(configFile)
                 try data.write(to: configPath)
                 print("Created config file at: \(configPath.path)")
-                return defaultServices
+                AppConfig.shared = AppConfig(services: configs)
+                return
             }
             
             print("Reading existing config file")
-            // Read and parse existing file
             let data = try Data(contentsOf: configPath)
             let decoder = JSONDecoder()
-            let configs = try decoder.decode([ServiceConfig].self, from: data)
+            let configFile = try decoder.decode(ConfigFile.self, from: data)
+            AppConfig.shared = AppConfig(services: configFile.services)
             
-            return configs.map { config in
-                ServiceStatus(name: config.name, url: config.url, status: false)
-            }
         } catch {
-            print("Error loading services: \(error)")
-            return getDefaultServices()
+            print("Error loading configuration: \(error)")
+            AppConfig.shared = AppConfig(services: getDefaultServices().map { 
+                ServiceConfig(name: $0.name, url: $0.url)
+            })
         }
+    }
+    
+    /// Modified to use the global config
+    static func loadServicesFromFile() -> [ServiceStatus] {
+        // Ensure config is loaded
+        if AppConfig.shared == nil {
+            loadConfiguration()
+        }
+        
+        return AppConfig.shared?.services.map { config in
+            ServiceStatus(name: config.name, url: config.url, status: false)
+        } ?? getDefaultServices()
     }
     
     private static func getConfigPath() -> URL? {
         guard let configDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
         }
-        return configDir.appendingPathComponent("ServiceChecker/services.json")
+        return configDir.appendingPathComponent("ServiceChecker/config.json")
     }
     
     private static func getDefaultServices() -> [ServiceStatus] {
