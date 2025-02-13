@@ -4,7 +4,6 @@ class StatusBarViewModel: ObservableObject {
     private let config: AppConfig
     @Published var services: [ServiceStatus]
     @Published var updateInterval: TimeInterval
-    @Published var nextUpdateTime: Date = Date()
     private var updateTimer: Timer?
     
     init() {
@@ -24,12 +23,10 @@ class StatusBarViewModel: ObservableObject {
     /// Starts the periodic monitoring of services
     private func startMonitoring() {
         _ = updateServiceStatuses() // Initial check
-        nextUpdateTime = Date().addingTimeInterval(updateInterval)
         
         updateTimer?.invalidate()
         updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             _ = self?.updateServiceStatuses()
-            self?.nextUpdateTime = Date().addingTimeInterval(self?.updateInterval ?? AppConfig.DEFAULT_UPDATE_INTERVAL)
         }
     }
     
