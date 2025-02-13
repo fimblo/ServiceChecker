@@ -1,7 +1,8 @@
 import Foundation
 
 class StatusBarViewModel: ObservableObject {
-    @Published var services: [ServiceStatus] = ServiceUtils.loadServicesFromFile()
+    private let config: AppConfig
+    @Published var services: [ServiceStatus]
     @Published var updateInterval: TimeInterval = {
         let savedInterval = UserDefaults.standard.double(forKey: "UpdateInterval")
         return savedInterval > 0 ? savedInterval : 5.0
@@ -11,6 +12,13 @@ class StatusBarViewModel: ObservableObject {
     private var updateTimer: Timer?
     
     init() {
+        ServiceUtils.loadConfiguration()
+        self.config = AppConfig.shared ?? AppConfig(services: [])
+        
+        self.services = config.services.map { config in
+            ServiceStatus(name: config.name, url: config.url, status: false)
+        }
+        
         startMonitoring()
     }
     

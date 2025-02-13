@@ -120,18 +120,7 @@ class ServiceUtils {
             })
         }
     }
-    
-    /// Modified to use the global config
-    static func loadServicesFromFile() -> [ServiceStatus] {
-        // Ensure config is loaded
-        if AppConfig.shared == nil {
-            loadConfiguration()
-        }
-        
-        return AppConfig.shared?.services.map { config in
-            ServiceStatus(name: config.name, url: config.url, status: false)
-        } ?? getDefaultServices()
-    }
+
     
     private static func getConfigPath() -> URL? {
         guard let configDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
