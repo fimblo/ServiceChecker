@@ -115,74 +115,48 @@ class StatusBarController: NSObject, ObservableObject {
 
         menu.addItem(NSMenuItem.separator())
         
-        // Add interval slider
-        let sliderItem = NSMenuItem()
-        let sliderView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 50))  // Increased width to 240
-        
-        let label = NSTextField(frame: NSRect(x: 20, y: 30, width: 200, height: 20))  // Increased width to 200
-        label.stringValue = "Update interval: \(Int(viewModel.updateInterval))s"
-        label.isEditable = false
-        label.isBordered = false
-        label.backgroundColor = .clear
-        label.alignment = .center
-        
-        // Add min/max labels
-        let minLabel = NSTextField(frame: NSRect(x: 20, y: 0, width: 20, height: 15))
-        minLabel.stringValue = "1s"
-        minLabel.isEditable = false
-        minLabel.isBordered = false
-        minLabel.backgroundColor = .clear
-        minLabel.alignment = .left
-        
-        let maxLabel = NSTextField(frame: NSRect(x: 180, y: 0, width: 40, height: 15))  // Adjusted x position
-        maxLabel.stringValue = "60s"
-        maxLabel.isEditable = false
-        maxLabel.isBordered = false
-        maxLabel.backgroundColor = .clear
-        maxLabel.alignment = .right
-        
-        let slider = NSSlider(frame: NSRect(x: 20, y: 15, width: 200, height: 20))  // Increased width to 200
-        slider.minValue = 0
-        slider.maxValue = 12
-        slider.doubleValue = viewModel.intervalToSliderPosition(viewModel.updateInterval)
-        slider.target = self
-        slider.action = #selector(sliderChanged(_:))
-        slider.numberOfTickMarks = 13
-        slider.allowsTickMarkValuesOnly = true
-        
-        sliderView.addSubview(label)
-        sliderView.addSubview(slider)
-        sliderView.addSubview(minLabel)
-        sliderView.addSubview(maxLabel)
-        
-        sliderItem.view = sliderView
-        menu.addItem(sliderItem)
-        
-        // Add separator and config directory
-        menu.addItem(NSMenuItem.separator())
-        
-        // Add Open Config Directory item
+        // Create Configure submenu
+        let configureMenu = NSMenu()
+        configureMenu.autoenablesItems = false
+
+        // Create Update Interval submenu
+        let intervalMenu = NSMenu()
+        let intervalItem = NSMenuItem(title: "Update Interval", action: nil, keyEquivalent: "")
+        intervalItem.submenu = intervalMenu
+
+        // Add interval options
+        let intervals = [1, 5, 10, 30, 60]
+        intervals.forEach { seconds in
+            let item = NSMenuItem(
+                title: "\(seconds) seconds",
+                action: #selector(updateInterval(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.tag = seconds
+            item.state = seconds == Int(viewModel.updateInterval) ? .on : .off
+            intervalMenu.addItem(item)
+        }
+
+        configureMenu.addItem(intervalItem)
+
+        // Add Open Config Directory to the submenu
         let openConfigItem = NSMenuItem(title: "Open Config Directory", action: #selector(openConfigDirectory), keyEquivalent: "")
         openConfigItem.target = self
-        menu.addItem(openConfigItem)
+        configureMenu.addItem(openConfigItem)
 
-        // Add About item
+        // Add the Configure menu item with submenu
+        let configureItem = NSMenuItem(title: "Configure", action: nil, keyEquivalent: "")
+        configureItem.submenu = configureMenu
+        menu.addItem(configureItem)
+
+        // Add About and Quit items
         let aboutItem = NSMenuItem(title: "About ServiceChecker", action: #selector(showAboutWindow), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        // Add quit item
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
-    }
-
-    /// Handles slider value changes and updates the UI
-    @objc private func sliderChanged(_ sender: NSSlider) {
-        let newInterval = viewModel.sliderPositionToInterval(sender.doubleValue)
-        viewModel.updateInterval(newInterval)
-        if let label = sender.superview?.subviews.first as? NSTextField {
-            label.stringValue = "Update interval: \(Int(newInterval))s"
-        }
     }
 
     /// Updates the status bar icon based on service health
@@ -253,6 +227,18 @@ class StatusBarController: NSObject, ObservableObject {
         }
         
         buildMenu()  // Rebuild menu to update service appearances
+    }
+
+    // Add this method to handle interval selection
+    @objc private func updateInterval(_ sender: NSMenuItem) {
+        viewModel.updateInterval(Double(sender.tag))
+        
+        // Update radio button states
+        if let intervalMenu = sender.menu {
+            for item in intervalMenu.items {
+                item.state = (item == sender) ? .on : .off
+            }
+        }
     }
 }
 

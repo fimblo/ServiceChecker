@@ -56,18 +56,6 @@ class StatusBarViewModel: ObservableObject {
         return upCount
     }
     
-    /// Converts a slider position (0-12) to seconds (1-60)
-    func sliderPositionToInterval(_ position: Double) -> TimeInterval {
-        if position == 0 { return 1 }
-        return TimeInterval(position * 5)
-    }
-    
-    /// Converts time interval in seconds to nearest slider position
-    func intervalToSliderPosition(_ interval: TimeInterval) -> Double {
-        if interval <= 1 { return 0 }
-        return round(interval / 5)
-    }
-    
     func setMonitoring(enabled: Bool) {
         if enabled {
             startMonitoring()
