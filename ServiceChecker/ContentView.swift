@@ -83,6 +83,21 @@ class StatusBarController: NSObject, ObservableObject {
         toggleItem.view = itemView
         menu.addItem(toggleItem)
         
+        // Add update interval info
+        let intervalInfoItem = NSMenuItem()
+        let intervalView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+        
+        let intervalLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
+        intervalLabel.stringValue = "Update interval: \(Int(viewModel.updateInterval)) seconds"
+        intervalLabel.isEditable = false
+        intervalLabel.isBordered = false
+        intervalLabel.backgroundColor = .clear
+        intervalLabel.textColor = .secondaryLabelColor
+        
+        intervalView.addSubview(intervalLabel)
+        intervalInfoItem.view = intervalView
+        menu.addItem(intervalInfoItem)
+        
         menu.addItem(NSMenuItem.separator())
         
         // Add services status items
