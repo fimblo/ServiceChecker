@@ -3,41 +3,43 @@ import Foundation
 class StatusBarViewModel: ObservableObject {
     private let config: AppConfig
     @Published var services: [ServiceStatus]
-    @Published var updateInterval: TimeInterval = {
-        let savedInterval = UserDefaults.standard.double(forKey: "UpdateInterval")
-        return savedInterval > 0 ? savedInterval : 5.0
-    }()
-    
+    @Published var updateInterval: TimeInterval
     @Published var nextUpdateTime: Date = Date()
     private var updateTimer: Timer?
     
     init() {
         ServiceUtils.loadConfiguration()
-        self.config = AppConfig.shared ?? AppConfig(services: [])
+        self.config = AppConfig.shared ?? AppConfig(services: [], 
+                                                  updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL)
         
         self.services = config.services.map { config in
             ServiceStatus(name: config.name, url: config.url, status: false)
         }
         
+        self.updateInterval = config.updateIntervalSeconds
+        
         startMonitoring()
     }
     
     /// Starts the periodic monitoring of services
-    func startMonitoring() {
+    private func startMonitoring() {
         _ = updateServiceStatuses() // Initial check
         nextUpdateTime = Date().addingTimeInterval(updateInterval)
         
         updateTimer?.invalidate()
         updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             _ = self?.updateServiceStatuses()
-            self?.nextUpdateTime = Date().addingTimeInterval(self?.updateInterval ?? 5.0)
+            self?.nextUpdateTime = Date().addingTimeInterval(self?.updateInterval ?? AppConfig.DEFAULT_UPDATE_INTERVAL)
         }
     }
     
     /// Updates the interval and restarts monitoring
     func updateInterval(_ newInterval: TimeInterval) {
         updateInterval = newInterval
-        UserDefaults.standard.set(updateInterval, forKey: "UpdateInterval")
+        if AppConfig.shared != nil {
+            AppConfig.shared?.updateIntervalSeconds = newInterval
+            ServiceUtils.saveConfiguration()
+        }
         startMonitoring()
     }
     
