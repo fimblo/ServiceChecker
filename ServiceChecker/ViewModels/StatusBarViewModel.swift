@@ -74,7 +74,7 @@ class StatusBarViewModel: ObservableObject {
         if let newConfig = AppConfig.shared {
             // Reset all services with unknown status
             self.services = newConfig.services.map { config in
-                ServiceStatus(name: config.name, url: config.url, status: false, lastError: "Checking...")
+                ServiceStatus(name: config.name, url: config.url, status: false, lastError: "")
             }
             self.updateInterval = newConfig.updateIntervalSeconds
             
