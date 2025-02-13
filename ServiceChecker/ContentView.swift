@@ -70,9 +70,9 @@ class StatusBarController: NSObject, ObservableObject {
         monitoringLabel.backgroundColor = .clear
         monitoringLabel.textColor = .labelColor
         
-        // Add switch on the right (moved further right)
+        // Add switch on the right
         let checkbox = NSButton(frame: NSRect(x: 200, y: 0, width: 40, height: 20))
-        checkbox.title = ""  // Remove title since we have the separate label
+        checkbox.title = ""
         checkbox.setButtonType(.switch)
         checkbox.state = isMonitoringEnabled ? .on : .off
         checkbox.target = self
@@ -87,19 +87,26 @@ class StatusBarController: NSObject, ObservableObject {
         
         // Add services status items
         viewModel.services.forEach { service in
-            let statusSymbol = service.status ? "✅" : "❌"
             let menuItem = NSMenuItem()
-            
             let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
             
             let serviceLabel = NSTextField(frame: NSRect(x: 20, y: 0, width: 200, height: 20))
-            let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
-            serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
+            
+            // Change appearance based on monitoring state
+            if isMonitoringEnabled {
+                let statusSymbol = service.status ? "✅" : "❌"
+                let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
+                serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
+                serviceLabel.textColor = .labelColor
+            } else {
+                serviceLabel.stringValue = "⦿ \(service.name)"  // or "○" or "•"
+                serviceLabel.textColor = .disabledControlTextColor
+            }
+            
             serviceLabel.isEditable = false
             serviceLabel.isBordered = false
-            serviceLabel.backgroundColor = NSColor.clear
-            serviceLabel.alignment = NSTextAlignment.left
-            serviceLabel.textColor = NSColor.controlTextColor
+            serviceLabel.backgroundColor = .clear
+            serviceLabel.alignment = .left
             
             itemView.addSubview(serviceLabel)
             menuItem.view = itemView
@@ -223,12 +230,13 @@ class StatusBarController: NSObject, ObservableObject {
 
     @objc private func toggleMonitoring() {
         isMonitoringEnabled.toggle()
-        // Update the checkbox state
+        // Update the checkbox state and rebuild menu to update service appearances
         if let toggleItem = menu.items.first,
            let itemView = toggleItem.view,
-           let checkbox = itemView.subviews.first as? NSButton {
+           let checkbox = itemView.subviews.last as? NSButton {
             checkbox.state = isMonitoringEnabled ? .on : .off
         }
+        buildMenu()  // Rebuild entire menu to update service appearances
     }
 }
 
