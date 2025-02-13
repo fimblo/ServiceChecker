@@ -113,8 +113,17 @@ class ServiceUtils {
             The service is considered up if the health check URL returns a 200
             status code.
 
-            The updateIntervalSeconds specifies how often (in seconds) to check the services.
+            The updateIntervalSeconds specifies how often (in seconds) to check the
+            services.
+
+            Important Note:
+            This app is intended to be used for your own services. It isn't
+            considered polite to use it on other people's systems without permission.
+
             """
+            // I'll tell you a story about this if you're interested. :) /fimblo
+
+
             try readmeContent.write(to: readmePath, atomically: true, encoding: .utf8)
             
             // Create default config if file doesn't exist

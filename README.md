@@ -26,9 +26,14 @@ it easy to keep track of your services' availability.
 - 🕒 Configurable update intervals (1-60 seconds)
 - 🚦 Visual status indicators in the menu bar
 
+> **Warning**
+> This app is intended to be used for your own services. It isn't considered
+polite to use it on other people's systems without permission.
+
 ## Installation
 
-Since this is an unsigned application, you'll need to follow these steps when first launching it:
+Since this is an unsigned application, you'll need to follow these steps
+when first launching it:
 
 1. Drag ServiceChecker.app to your Applications folder
 2. Right-click (or Control-click) on ServiceChecker.app
@@ -36,7 +41,8 @@ Since this is an unsigned application, you'll need to follow these steps when fi
 4. Click "Open" in the security dialog that appears
 5. The app will now start and appear in your status bar
 
-Note: After the first launch using these steps, you can open the app normally by double-clicking.
+Note: After the first launch using these steps, you can open the app normally
+by double-clicking.
 
 ## Configuration
 
