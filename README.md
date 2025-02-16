@@ -6,16 +6,10 @@ it easy to keep track of your services' availability.
 
 <p align="center">
   <img
-    alt="ServiceChecker Up"
-    width="248"
-    height="249"
-    src="/.docs/ServiceChecker-up.png"
-  >
-  <img
-    alt="ServiceChecker Down"
-    width="248"
-    height="249"
-    src="/.docs/ServiceChecker-down.png"
+    alt="ServiceChecker"
+    width="246"
+    height="207"
+    src="/.docs/ServiceChecker.png"
   >
 </p>
 
