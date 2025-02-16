@@ -3,7 +3,7 @@ import Foundation
 // Add this new struct at the top level
 struct AppConfig {
     /// The default update interval in seconds
-    static let DEFAULT_UPDATE_INTERVAL: TimeInterval = 5.0
+    static let DEFAULT_UPDATE_INTERVAL: TimeInterval = 10.0
     /// The default network timeout in seconds
     static let NETWORK_TIMEOUT_SECONDS: TimeInterval = 5
 
