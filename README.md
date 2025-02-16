@@ -21,8 +21,9 @@ it easy to keep track of your services' availability.
 - 🚦 Visual status indicators in the menu bar
 
 > **Warning**
-> This app is intended to be used for your own services. It isn't considered
-polite to use it on other people's systems without permission.
+> This app is designed for monitoring your own services. Frequent polling of
+> external services should only be done with explicit permission from the
+> service owner.
 
 ## Installation
 
