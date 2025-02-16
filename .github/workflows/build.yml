@@ -20,4 +20,4 @@ jobs:
         
     - name: Build
       run: |
-        xcodebuild build -scheme "ServiceChecker" -destination "platform=macOS" 
+        xcodebuild build -scheme "ServiceChecker" -destination "platform=macOS" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO 
