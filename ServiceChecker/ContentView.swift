@@ -215,13 +215,21 @@ class StatusBarController: NSObject, ObservableObject {
         serverImage?.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
         
         // Add red warning indicator only if monitoring is enabled and there are down services
-        if isMonitoringEnabled && upCount != viewModel.services.count {
-            let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-                .applying(.init(paletteColors: [.systemRed]))
-            let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
-                .withSymbolConfiguration(statusConfiguration)
+        if isMonitoringEnabled {
+            // Count only enabled services that are up
+            let enabledServicesUpCount = viewModel.services.filter { $0.mode == "enabled" && $0.status }.count
+            // Count total number of enabled services
+            let enabledServicesCount = viewModel.services.filter { $0.mode == "enabled" }.count
             
-            statusImage?.draw(in: NSRect(x: 8, y: 0, width: 10, height: 10))
+            // Show red dot if any enabled service is down
+            if enabledServicesUpCount < enabledServicesCount {
+                let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
+                    .applying(.init(paletteColors: [.systemRed]))
+                let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
+                    .withSymbolConfiguration(statusConfiguration)
+                
+                statusImage?.draw(in: NSRect(x: 8, y: 0, width: 10, height: 10))
+            }
         }
         
         finalImage.unlockFocus()
@@ -313,9 +321,25 @@ class StatusBarController: NSObject, ObservableObject {
         if index < viewModel.services.count {
             var updatedServices = viewModel.services
             let currentMode = updatedServices[index].mode
-            updatedServices[index].mode = currentMode == "enabled" ? "disabled" : "enabled" // Toggle the mode
+            updatedServices[index].mode = currentMode == "enabled" ? "disabled" : "enabled"
             viewModel.services = updatedServices
+            
+            // Update config and save
+            if var config = AppConfig.shared {
+                var services = config.services
+                services[index].mode = updatedServices[index].mode
+                config = AppConfig(services: services, updateIntervalSeconds: config.updateIntervalSeconds)
+                AppConfig.shared = config
+                ServiceUtils.saveConfiguration()
+            }
+            
             buildMenu()
+            
+            // Explicitly update the status bar icon
+            if let button = statusBarItem.button {
+                let upCount = viewModel.services.filter { $0.status }.count
+                updateStatusBarIcon(button: button, upCount: upCount)
+            }
         }
     }
 }

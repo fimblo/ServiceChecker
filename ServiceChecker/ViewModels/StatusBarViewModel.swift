@@ -7,12 +7,25 @@ class StatusBarViewModel: ObservableObject {
     private var updateTimer: Timer?
     
     init() {
+        print("Initializing StatusBarViewModel...")
         ServiceUtils.loadConfiguration()
         self.config = AppConfig.shared ?? AppConfig(services: [], 
                                                   updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL)
         
+        print("Config services:")
+        config.services.forEach { service in
+            print("  - \(service.name): mode = \(service.mode)")
+        }
+        
+        // Map config services to ServiceStatus, preserving the mode
         self.services = config.services.map { config in
-            ServiceStatus(name: config.name, url: config.url, status: false)
+            let status = ServiceStatus(name: config.name, 
+                                     url: config.url, 
+                                     status: false, 
+                                     lastError: "",
+                                     mode: config.mode)
+            print("Created ServiceStatus for \(config.name): mode = \(status.mode)")
+            return status
         }
         
         self.updateInterval = config.updateIntervalSeconds
