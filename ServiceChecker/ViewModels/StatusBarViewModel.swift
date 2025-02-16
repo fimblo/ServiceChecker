@@ -44,14 +44,17 @@ class StatusBarViewModel: ObservableObject {
     func updateServiceStatuses() -> Int {
         let upCount = services.indices.reduce(into: 0) { count, index in
             let service = services[index]
-            let (errorMessage, status) = ServiceUtils.checkHealth(service.url)
-            DispatchQueue.main.async {
-                self.services[index].status = status == 0
-                if !errorMessage.isEmpty {
-                    self.services[index].lastError = errorMessage
+            // Only check health if the service is in enabled mode
+            if service.mode == "enabled" {
+                let (errorMessage, status) = ServiceUtils.checkHealth(service.url)
+                DispatchQueue.main.async {
+                    self.services[index].status = status == 0
+                    if !errorMessage.isEmpty {
+                        self.services[index].lastError = errorMessage
+                    }
                 }
+                count += (status == 0 ? 1 : 0)
             }
-            count += (status == 0 ? 1 : 0)
         }
         return upCount
     }
