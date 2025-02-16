@@ -20,4 +20,15 @@ jobs:
         
     - name: Build
       run: |
-        xcodebuild build -scheme "ServiceChecker" -destination "platform=macOS" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO 
+        xcodebuild build -scheme "ServiceChecker" -destination "platform=macOS" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+
+    - name: Package App
+      run: |
+        cd "/Users/runner/Library/Developer/Xcode/DerivedData"
+        find . -name "ServiceChecker.app" -type d -exec zip -r ServiceChecker.zip {} \;
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ServiceChecker
+        path: "/Users/runner/Library/Developer/Xcode/DerivedData/ServiceChecker.zip" 
