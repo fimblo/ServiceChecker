@@ -7,6 +7,7 @@ struct ServiceStatus: Identifiable {
     let url: String
     var status: Bool
     var lastError: String = ""  // Added to store error messages
+    var mode: String = "enabled"
 }
 
 /// Represents a service configuration that can be saved to disk

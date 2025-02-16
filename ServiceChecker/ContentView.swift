@@ -101,30 +101,43 @@ class StatusBarController: NSObject, ObservableObject {
         menu.addItem(NSMenuItem.separator())
         
         // Add services status items
-        viewModel.services.forEach { service in
-            let menuItem = NSMenuItem()
+        viewModel.services.enumerated().forEach { (index, service) in
+            let menuItem = NSMenuItem(title: service.name, action: #selector(toggleServiceMode(_:)), keyEquivalent: "")
+            menuItem.tag = index
+            menuItem.target = self
+            
+            // Create the custom view
             let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
             
-            let serviceLabel = NSTextField(frame: NSRect(x: 20, y: 0, width: 200, height: 20))
-            
-            // Change appearance based on monitoring state
-            if isMonitoringEnabled {
-                let statusSymbol = service.status ? "✅" : "❌"
-                let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
-                serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
-                serviceLabel.textColor = .labelColor
-            } else {
-                serviceLabel.stringValue = "⦿ \(service.name)"  // or "○" or "•"
-                serviceLabel.textColor = .disabledControlTextColor
-            }
-            
+            let serviceLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
             serviceLabel.isEditable = false
             serviceLabel.isBordered = false
             serviceLabel.backgroundColor = .clear
             serviceLabel.alignment = .left
             
+            // Set the appearance based on monitoring and service mode
+            if isMonitoringEnabled {
+                if service.mode == "enabled" {
+                    let statusSymbol = service.status ? "✅" : "❌"
+                    let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
+                    serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
+                    serviceLabel.textColor = .labelColor
+                } else {
+                    serviceLabel.stringValue = "⦿ \(service.name)"
+                    serviceLabel.textColor = .disabledControlTextColor
+                }
+            } else {
+                serviceLabel.stringValue = "⦿ \(service.name)"
+                serviceLabel.textColor = .disabledControlTextColor
+            }
+            
             itemView.addSubview(serviceLabel)
             menuItem.view = itemView
+            
+            // Make the menu item clickable
+            let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(toggleServiceMode(_:)))
+            itemView.addGestureRecognizer(clickGesture)
+            
             menu.addItem(menuItem)
         }
 
@@ -282,6 +295,27 @@ class StatusBarController: NSObject, ObservableObject {
             for item in intervalMenu.items {
                 item.state = item.tag == Int(viewModel.updateInterval) ? .on : .off
             }
+        }
+    }
+
+    @objc public func toggleServiceMode(_ sender: Any) {
+        let index: Int
+        if let menuItem = sender as? NSMenuItem {
+            index = menuItem.tag
+        } else if let gesture = sender as? NSClickGestureRecognizer,
+                  let view = gesture.view,
+                  let menuItem = menu.items.first(where: { $0.view === view }) {
+            index = menuItem.tag
+        } else {
+            return
+        }
+        
+        if index < viewModel.services.count {
+            var updatedServices = viewModel.services
+            let currentMode = updatedServices[index].mode
+            updatedServices[index].mode = currentMode == "enabled" ? "disabled" : "enabled" // Toggle the mode
+            viewModel.services = updatedServices
+            buildMenu()
         }
     }
 }
