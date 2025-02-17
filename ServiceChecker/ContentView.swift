@@ -29,6 +29,15 @@ class StatusBarController: NSObject, ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.setupStatusBar()
         }
+        
+        // Update icon when config error status changes
+        viewModel.$configError.sink { [weak self] _ in
+            guard let self = self,
+                  let button = self.statusBarItem?.button else { return }
+            
+            let upCount = self.viewModel.services.filter { $0.status && $0.mode == "enabled" }.count
+            self.updateStatusBarIcon(button: button, upCount: upCount)
+        }.store(in: &cancellables)
     }
     
     /// Sets up the status bar item and menu
@@ -214,48 +223,56 @@ class StatusBarController: NSObject, ObservableObject {
 
     /// Updates the status bar icon based on service health
     private func updateStatusBarIcon(button: NSStatusBarButton, upCount: Int) {
-        // Create composite image
-        let configuration = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        let serverImage = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Service Status")!
+        serverImage.size = NSSize(width: 18, height: 18)
         
-        // Choose icon color based on monitoring state
-        let serverConfiguration: NSImage.SymbolConfiguration
-        if isMonitoringEnabled {
-            serverConfiguration = configuration
+        // Create a new image that will contain both the server rack and the overlay
+        let compositeImage = NSImage(size: NSSize(width: 18, height: 18))
+        compositeImage.lockFocus()
+        
+        if !isMonitoringEnabled {
+            // Greyed out server rack for disabled monitoring
+            NSColor.disabledControlTextColor.set()
+            serverImage.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18),
+                            from: NSRect(x: 0, y: 0, width: 18, height: 18),
+                            operation: .sourceOver,
+                            fraction: 0.5)
         } else {
-            serverConfiguration = configuration.applying(.init(paletteColors: [.secondaryLabelColor]))
-        }
-        
-        let serverImage = NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Server Status")?
-            .withSymbolConfiguration(serverConfiguration)
-        
-        let finalImage = NSImage(size: NSSize(width: 18, height: 18))
-        finalImage.lockFocus()
-        
-        // Draw base server icon
-        serverImage?.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
-        
-        // Add red warning indicator only if monitoring is enabled and there are down services
-        if isMonitoringEnabled {
-            // Count only enabled services that are up
-            let enabledServicesUpCount = viewModel.services.filter { $0.mode == "enabled" && $0.status }.count
-            // Count total number of enabled services
-            let enabledServicesCount = viewModel.services.filter { $0.mode == "enabled" }.count
+            // Normal color server rack
+            serverImage.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
             
-            // Show red dot if any enabled service is down
-            if enabledServicesUpCount < enabledServicesCount {
-                let statusConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .bold)
-                    .applying(.init(paletteColors: [.systemRed]))
-                let statusImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
-                    .withSymbolConfiguration(statusConfiguration)
-                
-                statusImage?.draw(in: NSRect(x: 8, y: 0, width: 10, height: 10))
+            if viewModel.configError != nil {
+                // Draw the X for config error
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .foregroundColor: NSColor.red,
+                    .font: NSFont.systemFont(ofSize: 20, weight: .bold)
+                ]
+                let x = "×"
+                let xSize = x.size(withAttributes: attributes)
+                let xPoint = NSPoint(
+                    x: (18 - xSize.width) / 2,
+                    y: (18 - xSize.height) / 2
+                )
+                x.draw(at: xPoint, withAttributes: attributes)
+            } else {
+                // Check status of enabled services only
+                let enabledServices = viewModel.services.filter { $0.mode == "enabled" }
+                if !enabledServices.isEmpty {
+                    let allUp = enabledServices.allSatisfy { $0.status }
+                    if !allUp {
+                        // Draw a small red dot in the bottom right corner
+                        let dotPath = NSBezierPath(ovalIn: NSRect(x: 12, y: 0, width: 6, height: 6))
+                        NSColor.red.setFill()
+                        dotPath.fill()
+                    }
+                }
             }
         }
         
-        finalImage.unlockFocus()
-        finalImage.isTemplate = false
+        compositeImage.unlockFocus()
         
-        button.image = finalImage
+        button.image = compositeImage
+        button.attributedTitle = NSAttributedString()
     }
 
     /// Opens the configuration directory in Finder
