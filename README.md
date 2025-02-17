@@ -1,3 +1,5 @@
+  ![Build Status](https://github.com/fimblo/ServiceChecker/actions/workflows/build.yml/badge.svg)
+
 # ServiceChecker
 
 ServiceChecker is a macOS status bar application that monitors the health
