@@ -76,55 +76,19 @@ class ServiceUtils {
     }
     
     /// Loads service configurations from file into global config
-    static func loadConfiguration() {
+    static func loadConfiguration() -> (Bool, String?) {
         guard let configPath = getConfigPath() else {
             print("Could not determine config path")
             AppConfig.shared = AppConfig(services: getDefaultServices().map { 
                 ServiceConfig(name: $0.name, url: $0.url)
             }, updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL)
-            return
+            return (false, "Could not determine config path")
         }
         
         do {
             let configDir = configPath.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: configDir,
                                                  withIntermediateDirectories: true)
-            
-            // Create/overwrite README.txt
-            let readmePath = configDir.appendingPathComponent("README.txt")
-            let readmeContent = """
-            This is the ServiceChecker configuration directory.
-            
-            The config.json file contains the configuration for ServiceChecker.
-            The 'services' section contains the list of services to monitor.
-            Each service should have a name and a health check URL.
-
-            The format is:
-            {
-                "services": [
-                    {
-                        "name": "Service Name",
-                        "url": "http://localhost:8080/path/to/health/check"
-                    }
-                ],
-                "updateIntervalSeconds": 5
-            }
-
-            The service is considered up if the health check URL returns a 200
-            status code.
-
-            The updateIntervalSeconds specifies how often (in seconds) to check the
-            services.
-
-            Important Note:
-            This app is intended to be used for your own services. It isn't
-            considered polite to use it on other people's systems without permission.
-
-            """
-            // I'll tell you a story about this if you're interested. :) /fimblo
-
-
-            try readmeContent.write(to: readmePath, atomically: true, encoding: .utf8)
             
             // Create default config if file doesn't exist
             if !FileManager.default.fileExists(atPath: configPath.path) {
@@ -138,7 +102,7 @@ class ServiceUtils {
                 try data.write(to: configPath)
                 print("Created config file at: \(configPath.path)")
                 AppConfig.shared = AppConfig(services: configs, updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL)
-                return
+                return (true, nil)
             }
             
             print("Reading existing config file")
@@ -147,12 +111,12 @@ class ServiceUtils {
             let configFile = try decoder.decode(ConfigFile.self, from: data)
             AppConfig.shared = AppConfig(services: configFile.services, 
                                        updateIntervalSeconds: configFile.updateIntervalSeconds)
+            return (true, nil)
             
         } catch {
             print("Error loading configuration: \(error)")
-            AppConfig.shared = AppConfig(services: getDefaultServices().map { 
-                ServiceConfig(name: $0.name, url: $0.url)
-            }, updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL)
+            AppConfig.shared = AppConfig(services: [], updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL)
+            return (false, "Error parsing config file")
         }
     }
 

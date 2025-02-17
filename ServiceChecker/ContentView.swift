@@ -83,62 +83,82 @@ class StatusBarController: NSObject, ObservableObject {
         toggleItem.view = itemView
         menu.addItem(toggleItem)
         
-        // Add update interval info
-        let intervalInfoItem = NSMenuItem()
-        let intervalView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
-        
-        let intervalLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
-        intervalLabel.stringValue = "Update interval: \(Int(viewModel.updateInterval)) seconds"
-        intervalLabel.isEditable = false
-        intervalLabel.isBordered = false
-        intervalLabel.backgroundColor = .clear
-        intervalLabel.textColor = .secondaryLabelColor
-        
-        intervalView.addSubview(intervalLabel)
-        intervalInfoItem.view = intervalView
-        menu.addItem(intervalInfoItem)
-        
         menu.addItem(NSMenuItem.separator())
         
-        // Add services status items
-        viewModel.services.enumerated().forEach { (index, service) in
-            let menuItem = NSMenuItem(title: service.name, action: #selector(toggleServiceMode(_:)), keyEquivalent: "")
-            menuItem.tag = index
-            menuItem.target = self
+        // Show error message if there is one
+        if let error = viewModel.configError {
+            let errorItem = NSMenuItem()
+            let errorView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 40))
             
-            // Create the custom view
-            let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+            let errorLabel = NSTextField(frame: NSRect(x: 16, y: -13, width: 200, height: 40))
+            errorLabel.stringValue = "⚠️ \(error)"
+            errorLabel.isEditable = false
+            errorLabel.isBordered = false
+            errorLabel.backgroundColor = .clear
+            errorLabel.textColor = .systemRed
+            errorLabel.cell?.wraps = true
             
-            let serviceLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
-            serviceLabel.isEditable = false
-            serviceLabel.isBordered = false
-            serviceLabel.backgroundColor = .clear
-            serviceLabel.alignment = .left
+            errorView.addSubview(errorLabel)
+            errorItem.view = errorView
+            menu.addItem(errorItem)
+        } else {
+            // Add update interval info
+            let intervalInfoItem = NSMenuItem()
+            let intervalView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
             
-            // Set the appearance based on monitoring and service mode
-            if isMonitoringEnabled {
-                if service.mode == "enabled" {
-                    let statusSymbol = service.status ? "✅" : "❌"
-                    let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
-                    serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
-                    serviceLabel.textColor = .labelColor
+            let intervalLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
+            intervalLabel.stringValue = "Update interval: \(Int(viewModel.updateInterval)) seconds"
+            intervalLabel.isEditable = false
+            intervalLabel.isBordered = false
+            intervalLabel.backgroundColor = .clear
+            intervalLabel.textColor = .secondaryLabelColor
+            
+            intervalView.addSubview(intervalLabel)
+            intervalInfoItem.view = intervalView
+            menu.addItem(intervalInfoItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // Add services status items
+            viewModel.services.enumerated().forEach { (index, service) in
+                let menuItem = NSMenuItem(title: service.name, action: #selector(toggleServiceMode(_:)), keyEquivalent: "")
+                menuItem.tag = index
+                menuItem.target = self
+                
+                // Create the custom view
+                let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+                
+                let serviceLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
+                serviceLabel.isEditable = false
+                serviceLabel.isBordered = false
+                serviceLabel.backgroundColor = .clear
+                serviceLabel.alignment = .left
+                
+                // Set the appearance based on monitoring and service mode
+                if isMonitoringEnabled {
+                    if service.mode == "enabled" {
+                        let statusSymbol = service.status ? "✅" : "❌"
+                        let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
+                        serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
+                        serviceLabel.textColor = .labelColor
+                    } else {
+                        serviceLabel.stringValue = "⦿ \(service.name)"
+                        serviceLabel.textColor = .disabledControlTextColor
+                    }
                 } else {
                     serviceLabel.stringValue = "⦿ \(service.name)"
                     serviceLabel.textColor = .disabledControlTextColor
                 }
-            } else {
-                serviceLabel.stringValue = "⦿ \(service.name)"
-                serviceLabel.textColor = .disabledControlTextColor
+                
+                itemView.addSubview(serviceLabel)
+                menuItem.view = itemView
+                
+                // Make the menu item clickable
+                let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(toggleServiceMode(_:)))
+                itemView.addGestureRecognizer(clickGesture)
+                
+                menu.addItem(menuItem)
             }
-            
-            itemView.addSubview(serviceLabel)
-            menuItem.view = itemView
-            
-            // Make the menu item clickable
-            let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(toggleServiceMode(_:)))
-            itemView.addGestureRecognizer(clickGesture)
-            
-            menu.addItem(menuItem)
         }
 
         menu.addItem(NSMenuItem.separator())
