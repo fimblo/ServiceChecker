@@ -27,14 +27,11 @@ it easy to keep track of your services' availability.
 
 ## Installation
 
-Since this is an unsigned application, you'll need to follow these steps
-when first launching it:
-
-1. Drag ServiceChecker.app to your Applications folder
-2. Right-click (or Control-click) on ServiceChecker.app
-3. Select "Open" from the context menu
-4. Click "Open" in the security dialog that appears
-5. The app will now start and appear in your status bar
+1. Download the latest version from [Releases](https://github.com/fimblo/ServiceChecker/releases)
+2. Unzip, then Right-click (or Control-click) on ServiceChecker.app
+4. Select "Open" from the context menu
+5. Click "Open" in the security dialog that appears
+6. The app will now start and appear in your status bar
 
 Note: After the first launch using these steps, you can open the app normally
 by double-clicking.
