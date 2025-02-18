@@ -96,7 +96,7 @@ class StatusBarViewModel: ObservableObject {
         
         if success, let newConfig = AppConfig.shared {
             self.services = newConfig.services.map { config in
-                ServiceStatus(name: config.name, url: config.url, status: false, lastError: "")
+                ServiceStatus(name: config.name, url: config.url, status: false, lastError: "", mode: config.mode)
             }
             self.updateInterval = newConfig.updateIntervalSeconds
             startMonitoring()
