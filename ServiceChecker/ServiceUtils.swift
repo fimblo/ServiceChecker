@@ -124,6 +124,57 @@ class ServiceUtils {
             try FileManager.default.createDirectory(at: configDir,
                                                  withIntermediateDirectories: true)
             
+            // Create/overwrite README.txt
+            let readmePath = configDir.appendingPathComponent("README.txt")
+            let readmeContent = """
+            This is the ServiceChecker configuration directory.
+            
+
+            ServiceChecker only cares about one file - config.json.
+
+            The config.json file contains the list of services to monitor.
+            Each service should have a name and a health check URL.
+
+            The minimal format is:
+            {
+                "services": [
+                    {
+                        "name": "Service Name",
+                        "url": "http://localhost",
+                    }
+                ]
+            }
+
+            The full format, with all optional fields:
+            {
+                "services": [
+                    {
+                        "name": "Service Name",
+                        "url": "http://localhost:8080/path/to/health/check",
+                        "mode": "enabled",
+                    },
+                    {
+                        "name": "Service Name 2",
+                        "url": "http://localhost:8080/path/to/health/check",
+                        "mode": "disabled",
+                    }
+                ],
+                "symbolUp": "🟢",             ## or any other unicode character
+                "symbolDown": "🔴",           ## or any other unicode character
+                "symbolDisabled": "⚪",       ## or any other unicode character
+                "updateIntervalSeconds": 10   ## 1-60 seconds
+            }
+            
+            The service is considered up if the health check URL returns a 200
+            status code.
+
+            You can have multiple services, one after another. I haven't tested
+            how many services you can have, but it's probably fun to find out if
+            you're into that kind of thing.
+
+            """
+            try readmeContent.write(to: readmePath, atomically: true, encoding: .utf8)
+            
             // Create default config if file doesn't exist
             if !FileManager.default.fileExists(atPath: configPath.path) {
                 print("Config file doesn't exist, creating with defaults")
