@@ -147,18 +147,18 @@ class StatusBarController: NSObject, ObservableObject {
                 if isMonitoringEnabled {
                     if service.mode == "enabled" {
                         let statusSymbol = service.status ? 
-                            AppConfig.shared?.upSymbol ?? AppConfig.DEFAULT_UP_SYMBOL : 
-                            AppConfig.shared?.downSymbol ?? AppConfig.DEFAULT_DOWN_SYMBOL
+                            AppConfig.shared?.symbolUp ?? AppConfig.DEFAULT_SYMBOL_UP : 
+                            AppConfig.shared?.symbolDown ?? AppConfig.DEFAULT_SYMBOL_DOWN
                         let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
                         serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
                         serviceLabel.textColor = .labelColor
                     } else {
-                        let disabledSymbol = AppConfig.shared?.disabledSymbol ?? AppConfig.DEFAULT_DISABLED_SYMBOL
+                        let disabledSymbol = AppConfig.shared?.symbolDisabled ?? AppConfig.DEFAULT_SYMBOL_DISABLED
                         serviceLabel.stringValue = "\(disabledSymbol) \(service.name)"
                         serviceLabel.textColor = .disabledControlTextColor
                     }
                 } else {
-                    let disabledSymbol = AppConfig.shared?.disabledSymbol ?? AppConfig.DEFAULT_DISABLED_SYMBOL
+                    let disabledSymbol = AppConfig.shared?.symbolDisabled ?? AppConfig.DEFAULT_SYMBOL_DISABLED
                     serviceLabel.stringValue = "\(disabledSymbol) \(service.name)"
                     serviceLabel.textColor = .disabledControlTextColor
                 }
@@ -372,9 +372,9 @@ class StatusBarController: NSObject, ObservableObject {
                 config = AppConfig(
                     services: services, 
                     updateIntervalSeconds: config.updateIntervalSeconds,
-                    upSymbol: config.upSymbol,
-                    downSymbol: config.downSymbol,
-                    disabledSymbol: config.disabledSymbol
+                    symbolUp: config.symbolUp,
+                    symbolDown: config.symbolDown,
+                    symbolDisabled: config.symbolDisabled
                 )
                 AppConfig.shared = config
                 ServiceUtils.saveConfiguration()

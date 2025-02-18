@@ -6,28 +6,28 @@ struct AppConfig {
     static let DEFAULT_UPDATE_INTERVAL: TimeInterval = 10.0
     /// The default network timeout in seconds
     static let NETWORK_TIMEOUT_SECONDS: TimeInterval = 5
-    static let DEFAULT_UP_SYMBOL = "🟢"
-    static let DEFAULT_DOWN_SYMBOL = "🔴"
-    static let DEFAULT_DISABLED_SYMBOL = "⚪"
+    static let DEFAULT_SYMBOL_UP = "🟢"
+    static let DEFAULT_SYMBOL_DOWN = "🔴"
+    static let DEFAULT_SYMBOL_DISABLED = "⚪"
 
     var services: [ServiceConfig]
     var updateIntervalSeconds: TimeInterval
-    var upSymbol: String
-    var downSymbol: String
-    var disabledSymbol: String
+    var symbolUp: String
+    var symbolDown: String
+    var symbolDisabled: String
     
     static var shared: AppConfig?
     
     init(services: [ServiceConfig], 
          updateIntervalSeconds: TimeInterval = DEFAULT_UPDATE_INTERVAL,
-         upSymbol: String = DEFAULT_UP_SYMBOL,
-         downSymbol: String = DEFAULT_DOWN_SYMBOL,
-         disabledSymbol: String = DEFAULT_DISABLED_SYMBOL) {
+         symbolUp: String = DEFAULT_SYMBOL_UP,
+         symbolDown: String = DEFAULT_SYMBOL_DOWN,
+         symbolDisabled: String = DEFAULT_SYMBOL_DISABLED) {
         self.services = services
         self.updateIntervalSeconds = updateIntervalSeconds
-        self.upSymbol = upSymbol
-        self.downSymbol = downSymbol
-        self.disabledSymbol = disabledSymbol
+        self.symbolUp = symbolUp
+        self.symbolDown = symbolDown
+        self.symbolDisabled = symbolDisabled
     }
 }
 
@@ -35,37 +35,37 @@ struct AppConfig {
 struct ConfigFile: Codable {
     var services: [ServiceConfig]
     var updateIntervalSeconds: TimeInterval
-    var upSymbol: String
-    var downSymbol: String
-    var disabledSymbol: String
+    var symbolUp: String
+    var symbolDown: String
+    var symbolDisabled: String
     
     init(services: [ServiceConfig], 
          updateIntervalSeconds: TimeInterval, 
-         upSymbol: String = AppConfig.DEFAULT_UP_SYMBOL, 
-         downSymbol: String = AppConfig.DEFAULT_DOWN_SYMBOL,
-         disabledSymbol: String = AppConfig.DEFAULT_DISABLED_SYMBOL) {
+         symbolUp: String = AppConfig.DEFAULT_SYMBOL_UP, 
+         symbolDown: String = AppConfig.DEFAULT_SYMBOL_DOWN,
+         symbolDisabled: String = AppConfig.DEFAULT_SYMBOL_DISABLED) {
         self.services = services
         self.updateIntervalSeconds = updateIntervalSeconds
-        self.upSymbol = upSymbol
-        self.downSymbol = downSymbol
-        self.disabledSymbol = disabledSymbol
+        self.symbolUp = symbolUp
+        self.symbolDown = symbolDown
+        self.symbolDisabled = symbolDisabled
     }
     
     enum CodingKeys: String, CodingKey {
         case services
         case updateIntervalSeconds
-        case upSymbol
-        case downSymbol
-        case disabledSymbol
+        case symbolUp
+        case symbolDown
+        case symbolDisabled
     }
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         services = try container.decode([ServiceConfig].self, forKey: .services)
         updateIntervalSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .updateIntervalSeconds) ?? AppConfig.DEFAULT_UPDATE_INTERVAL
-        upSymbol = try container.decodeIfPresent(String.self, forKey: .upSymbol) ?? AppConfig.DEFAULT_UP_SYMBOL
-        downSymbol = try container.decodeIfPresent(String.self, forKey: .downSymbol) ?? AppConfig.DEFAULT_DOWN_SYMBOL
-        disabledSymbol = try container.decodeIfPresent(String.self, forKey: .disabledSymbol) ?? AppConfig.DEFAULT_DISABLED_SYMBOL
+        symbolUp = try container.decodeIfPresent(String.self, forKey: .symbolUp) ?? AppConfig.DEFAULT_SYMBOL_UP
+        symbolDown = try container.decodeIfPresent(String.self, forKey: .symbolDown) ?? AppConfig.DEFAULT_SYMBOL_DOWN
+        symbolDisabled = try container.decodeIfPresent(String.self, forKey: .symbolDisabled) ?? AppConfig.DEFAULT_SYMBOL_DISABLED
     }
 }
 
@@ -115,7 +115,7 @@ class ServiceUtils {
             print("Could not determine config path")
             AppConfig.shared = AppConfig(services: getDefaultServices().map { 
                 ServiceConfig(name: $0.name, url: $0.url)
-            }, updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL, upSymbol: AppConfig.DEFAULT_UP_SYMBOL, downSymbol: AppConfig.DEFAULT_DOWN_SYMBOL, disabledSymbol: AppConfig.DEFAULT_DISABLED_SYMBOL)
+            }, updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL, symbolUp: AppConfig.DEFAULT_SYMBOL_UP, symbolDown: AppConfig.DEFAULT_SYMBOL_DOWN, symbolDisabled: AppConfig.DEFAULT_SYMBOL_DISABLED)
             return (false, "Could not determine config path")
         }
         
@@ -129,7 +129,7 @@ class ServiceUtils {
                 print("Config file doesn't exist, creating with defaults")
                 let defaultServices = getDefaultServices()
                 let configs = defaultServices.map { ServiceConfig(name: $0.name, url: $0.url) }
-                let configFile = ConfigFile(services: configs, updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL, upSymbol: AppConfig.DEFAULT_UP_SYMBOL, downSymbol: AppConfig.DEFAULT_DOWN_SYMBOL, disabledSymbol: AppConfig.DEFAULT_DISABLED_SYMBOL)
+                let configFile = ConfigFile(services: configs, updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL, symbolUp: AppConfig.DEFAULT_SYMBOL_UP, symbolDown: AppConfig.DEFAULT_SYMBOL_DOWN, symbolDisabled: AppConfig.DEFAULT_SYMBOL_DISABLED)
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
                 let data = try encoder.encode(configFile)
@@ -137,9 +137,9 @@ class ServiceUtils {
                 print("Created config file at: \(configPath.path)")
                 AppConfig.shared = AppConfig(services: configs, 
                                            updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL,
-                                           upSymbol: AppConfig.DEFAULT_UP_SYMBOL,
-                                           downSymbol: AppConfig.DEFAULT_DOWN_SYMBOL,
-                                           disabledSymbol: AppConfig.DEFAULT_DISABLED_SYMBOL)
+                                           symbolUp: AppConfig.DEFAULT_SYMBOL_UP,
+                                           symbolDown: AppConfig.DEFAULT_SYMBOL_DOWN,
+                                           symbolDisabled: AppConfig.DEFAULT_SYMBOL_DISABLED)
                 return (true, nil)
             }
             
@@ -149,14 +149,14 @@ class ServiceUtils {
             let configFile = try decoder.decode(ConfigFile.self, from: data)
             AppConfig.shared = AppConfig(services: configFile.services, 
                                        updateIntervalSeconds: configFile.updateIntervalSeconds,
-                                       upSymbol: configFile.upSymbol,
-                                       downSymbol: configFile.downSymbol,
-                                       disabledSymbol: configFile.disabledSymbol)
+                                       symbolUp: configFile.symbolUp,
+                                       symbolDown: configFile.symbolDown,
+                                       symbolDisabled: configFile.symbolDisabled)
             return (true, nil)
             
         } catch {
             print("Error loading configuration: \(error)")
-            AppConfig.shared = AppConfig(services: [], updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL, upSymbol: AppConfig.DEFAULT_UP_SYMBOL, downSymbol: AppConfig.DEFAULT_DOWN_SYMBOL, disabledSymbol: AppConfig.DEFAULT_DISABLED_SYMBOL)
+            AppConfig.shared = AppConfig(services: [], updateIntervalSeconds: AppConfig.DEFAULT_UPDATE_INTERVAL, symbolUp: AppConfig.DEFAULT_SYMBOL_UP, symbolDown: AppConfig.DEFAULT_SYMBOL_DOWN, symbolDisabled: AppConfig.DEFAULT_SYMBOL_DISABLED)
             return (false, "Error parsing config file")
         }
     }
@@ -186,11 +186,11 @@ class ServiceUtils {
         do {
             let configFile = ConfigFile(services: config.services, 
                                       updateIntervalSeconds: config.updateIntervalSeconds,
-                                      upSymbol: config.upSymbol,
-                                      downSymbol: config.downSymbol,
-                                      disabledSymbol: config.disabledSymbol)
+                                      symbolUp: config.symbolUp,
+                                      symbolDown: config.symbolDown,
+                                      symbolDisabled: config.symbolDisabled)
             let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+            encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys]
             let data = try encoder.encode(configFile)
             try data.write(to: configPath)
             print("Saved configuration to: \(configPath.path)")
