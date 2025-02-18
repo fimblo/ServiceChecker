@@ -19,7 +19,8 @@ it easy to keep track of your services' availability.
 ## Features
 
 - 🔍 Monitors multiple web services simultaneously
-- 🕒 Configurable update intervals (1-60 seconds)
+- 🔌 Toggle monitoring of services individually, or all at once
+- 🕒 Easy configuration by modifying json file
 - 🚦 Visual status indicators in the menu bar
 
 > **Warning**
@@ -46,7 +47,7 @@ Finding the configuration file:
 1. Open the app
 2. Click on the status bar icon
 3. Click on "Open Config Directory"
-4. Read the instructions in the README.md file
+4. Read the instructions in the README.md file, then modify `config.json`
 
 
 ## Known Issues
