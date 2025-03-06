@@ -39,6 +39,22 @@ it easy to keep track of your services' availability.
 Note: After the first launch using these steps, you can open the app normally
 by double-clicking.
 
+### If you get the error "ServiceChecker.app is damaged and can't be opened. You should move it to the Trash."
+
+Open your terminal and run the command:
+
+```bash
+xattr -d com.apple.quarantine path/to/ServiceChecker.app
+```
+
+This command removes the quarantine attribute that macOS automatically adds to
+downloaded files. The quarantine system is a security feature that helps protect
+users from potentially malicious software, but in this case it's preventing a
+legitimate app from running. By removing this attribute, you're telling macOS
+that you trust this application and want to run it.
+
+Afterwards, you can open the app normally by double-clicking.
+
 ## Configuration
 
 ### Services Configuration
