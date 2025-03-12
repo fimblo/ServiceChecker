@@ -115,18 +115,28 @@ class StatusBarController: NSObject, ObservableObject {
         
         // Add Startup Watch button if monitoring is enabled
         if isMonitoringEnabled {
-            let startupWatchItem = NSMenuItem(
-                title: "Startup Watch",
-                action: #selector(toggleStartupWatch),
-                keyEquivalent: ""
-            )
-            startupWatchItem.target = self
+            let startupWatchItem = NSMenuItem()
+            let startupWatchView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
             
-            // Show as active if startup watch is running - use ViewModel's property
-            if viewModel.isInStartupWatchMode {
-                startupWatchItem.state = .on
-            }
+            // Create label with same positioning as monitoring label
+            let startupWatchLabel = NSTextField(frame: NSRect(x: 16, y: 2, width: 160, height: 16))
+            startupWatchLabel.stringValue = "Startup Watch"
+            startupWatchLabel.isEditable = false
+            startupWatchLabel.isBordered = false
+            startupWatchLabel.backgroundColor = .clear
+            startupWatchLabel.textColor = .labelColor
             
+            // Create checkbox with same positioning as monitoring checkbox
+            let startupWatchCheckbox = NSButton(frame: NSRect(x: 200, y: 0, width: 40, height: 20))
+            startupWatchCheckbox.title = ""
+            startupWatchCheckbox.setButtonType(.switch)
+            startupWatchCheckbox.state = viewModel.isInStartupWatchMode ? .on : .off
+            startupWatchCheckbox.target = self
+            startupWatchCheckbox.action = #selector(toggleStartupWatch)
+            
+            startupWatchView.addSubview(startupWatchLabel)
+            startupWatchView.addSubview(startupWatchCheckbox)
+            startupWatchItem.view = startupWatchView
             menu.addItem(startupWatchItem)
         }
         
