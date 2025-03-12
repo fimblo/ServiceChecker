@@ -22,12 +22,12 @@ class StatusBarController: NSObject, ObservableObject {
         }
     }
     
-    // Add a property to observe startup watch status changes
-    private var startupWatchObserver: NSObjectProtocol?
-    
     override init() {
         self.viewModel = StatusBarViewModel()
         super.init()
+        
+        // Sync the initial monitoring state with the view model
+        viewModel.monitoringEnabled = isMonitoringEnabled
         
         DispatchQueue.main.async { [weak self] in
             self?.setupStatusBar()
@@ -42,14 +42,17 @@ class StatusBarController: NSObject, ObservableObject {
             self.updateStatusBarIcon(button: button, upCount: upCount)
         }.store(in: &cancellables)
         
-        // Add observer for startup watch status changes
-        startupWatchObserver = NotificationCenter.default.addObserver(
-            forName: Notification.Name("StartupWatchStatusChanged"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
+        // Observe startup watch status changes
+        viewModel.$isInStartupWatchMode.sink { [weak self] _ in
             self?.buildMenu()
-        }
+        }.store(in: &cancellables)
+        
+        // Observe remaining time changes to update the menu
+        viewModel.$startupWatchRemainingTime.sink { [weak self] _ in
+            if self?.viewModel.isInStartupWatchMode == true {
+                self?.buildMenu()
+            }
+        }.store(in: &cancellables)
     }
     
     /// Sets up the status bar item and menu
@@ -77,6 +80,12 @@ class StatusBarController: NSObject, ObservableObject {
     
     /// Rebuilds the status bar menu with current service statuses
     private func buildMenu() {
+        // Check if menu is initialized
+        guard menu != nil else {
+            print("Warning: Attempted to build menu before it was initialized")
+            return
+        }
+        
         menu.removeAllItems()
         
         // Add monitoring toggle
@@ -113,8 +122,8 @@ class StatusBarController: NSObject, ObservableObject {
             )
             startupWatchItem.target = self
             
-            // Show as active if startup watch is running
-            if AppConfig.isStartupWatchActive {
+            // Show as active if startup watch is running - use ViewModel's property
+            if viewModel.isInStartupWatchMode {
                 startupWatchItem.state = .on
             }
             
@@ -140,82 +149,79 @@ class StatusBarController: NSObject, ObservableObject {
             errorItem.view = errorView
             menu.addItem(errorItem)
         } else {
-            // Modify the update interval info to show startup watch status when active
-            if viewModel.configError == nil {
-                let intervalInfoItem = NSMenuItem()
-                let intervalView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
-                
-                let intervalLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
-                
-                if AppConfig.isStartupWatchActive {
-                    // Show remaining time if in startup watch mode
-                    if let remainingTime = ServiceUtils.getStartupWatchRemainingTime() {
-                        let minutes = Int(remainingTime) / 60
-                        let seconds = Int(remainingTime) % 60
-                        intervalLabel.stringValue = "Startup Watch: \(minutes)m \(seconds)s remaining"
-                    } else {
-                        intervalLabel.stringValue = "Startup Watch active"
-                    }
+            // Add interval info item
+            let intervalInfoItem = NSMenuItem()
+            let intervalView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+            
+            let intervalLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
+            
+            if viewModel.isInStartupWatchMode {
+                // Show remaining time if in startup watch mode
+                if let remainingTime = viewModel.startupWatchRemainingTime {
+                    let minutes = Int(remainingTime) / 60
+                    let seconds = Int(remainingTime) % 60
+                    intervalLabel.stringValue = "Startup Watch: \(minutes)m \(seconds)s remaining"
                 } else {
-                    // Show normal update interval
-                    intervalLabel.stringValue = "Update interval: \(Int(viewModel.updateInterval)) seconds"
+                    intervalLabel.stringValue = "Startup Watch active"
                 }
+            } else {
+                intervalLabel.stringValue = "Update interval: \(Int(viewModel.updateInterval)) seconds"
+            }
+            
+            intervalLabel.isEditable = false
+            intervalLabel.isBordered = false
+            intervalLabel.backgroundColor = .clear
+            intervalLabel.textColor = .labelColor
+            
+            intervalView.addSubview(intervalLabel)
+            intervalInfoItem.view = intervalView
+            menu.addItem(intervalInfoItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // Add services status items
+            viewModel.services.enumerated().forEach { (index, service) in
+                let menuItem = NSMenuItem(title: service.name, action: #selector(toggleServiceMode(_:)), keyEquivalent: "")
+                menuItem.tag = index
+                menuItem.target = self
                 
-                intervalLabel.isEditable = false
-                intervalLabel.isBordered = false
-                intervalLabel.backgroundColor = .clear
-                intervalLabel.textColor = .secondaryLabelColor
+                // Create the custom view
+                let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
                 
-                intervalView.addSubview(intervalLabel)
-                intervalInfoItem.view = intervalView
-                menu.addItem(intervalInfoItem)
+                let serviceLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
+                serviceLabel.isEditable = false
+                serviceLabel.isBordered = false
+                serviceLabel.backgroundColor = .clear
+                serviceLabel.alignment = .left
                 
-                menu.addItem(NSMenuItem.separator())
-                
-                // Add services status items
-                viewModel.services.enumerated().forEach { (index, service) in
-                    let menuItem = NSMenuItem(title: service.name, action: #selector(toggleServiceMode(_:)), keyEquivalent: "")
-                    menuItem.tag = index
-                    menuItem.target = self
-                    
-                    // Create the custom view
-                    let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
-                    
-                    let serviceLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
-                    serviceLabel.isEditable = false
-                    serviceLabel.isBordered = false
-                    serviceLabel.backgroundColor = .clear
-                    serviceLabel.alignment = .left
-                    
-                    // Set the appearance based on monitoring and service mode
-                    if isMonitoringEnabled {
-                        if service.mode == "enabled" {
-                            let statusSymbol = service.status ? 
-                                AppConfig.shared?.symbolUp ?? AppConfig.DEFAULT_SYMBOL_UP : 
-                                AppConfig.shared?.symbolDown ?? AppConfig.DEFAULT_SYMBOL_DOWN
-                            let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
-                            serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
-                            serviceLabel.textColor = .labelColor
-                        } else {
-                            let disabledSymbol = AppConfig.shared?.symbolDisabled ?? AppConfig.DEFAULT_SYMBOL_DISABLED
-                            serviceLabel.stringValue = "\(disabledSymbol) \(service.name)"
-                            serviceLabel.textColor = .disabledControlTextColor
-                        }
+                // Set the appearance based on monitoring and service mode
+                if isMonitoringEnabled {
+                    if service.mode == "enabled" {
+                        let statusSymbol = service.status ? 
+                            AppConfig.shared?.symbolUp ?? AppConfig.DEFAULT_SYMBOL_UP : 
+                            AppConfig.shared?.symbolDown ?? AppConfig.DEFAULT_SYMBOL_DOWN
+                        let errorText = service.lastError.isEmpty ? "" : " (\(service.lastError))"
+                        serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
+                        serviceLabel.textColor = .labelColor
                     } else {
                         let disabledSymbol = AppConfig.shared?.symbolDisabled ?? AppConfig.DEFAULT_SYMBOL_DISABLED
                         serviceLabel.stringValue = "\(disabledSymbol) \(service.name)"
                         serviceLabel.textColor = .disabledControlTextColor
                     }
-                    
-                    itemView.addSubview(serviceLabel)
-                    menuItem.view = itemView
-                    
-                    // Make the menu item clickable
-                    let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(toggleServiceMode(_:)))
-                    itemView.addGestureRecognizer(clickGesture)
-                    
-                    menu.addItem(menuItem)
+                } else {
+                    let disabledSymbol = AppConfig.shared?.symbolDisabled ?? AppConfig.DEFAULT_SYMBOL_DISABLED
+                    serviceLabel.stringValue = "\(disabledSymbol) \(service.name)"
+                    serviceLabel.textColor = .disabledControlTextColor
                 }
+                
+                itemView.addSubview(serviceLabel)
+                menuItem.view = itemView
+                
+                // Make the menu item clickable
+                let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(toggleServiceMode(_:)))
+                itemView.addGestureRecognizer(clickGesture)
+                
+                menu.addItem(menuItem)
             }
         }
 
@@ -435,23 +441,10 @@ class StatusBarController: NSObject, ObservableObject {
         }
     }
 
-    // Add method to toggle Startup Watch
+    // Modify the toggleStartupWatch method to use ViewModel instead of ServiceUtils directly
     @objc private func toggleStartupWatch() {
-        if AppConfig.isStartupWatchActive {
-            ServiceUtils.stopStartupWatch()
-        } else {
-            ServiceUtils.startStartupWatch()
-        }
-        
-        // Update menu item state
-        buildMenu()
-    }
-
-    // Add this to deinit if it exists, or create a deinit method
-    deinit {
-        if let observer = startupWatchObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        viewModel.toggleStartupWatch()
+        // No need to call buildMenu() here as it will be triggered by the published property change
     }
 }
 

@@ -13,6 +13,9 @@ class StatusBarViewModel: ObservableObject {
     @Published var isInStartupWatchMode: Bool = false
     @Published var startupWatchRemainingTime: TimeInterval?
     
+    // Add this property to StatusBarViewModel
+    @Published var monitoringEnabled: Bool = true
+    
     init() {
         print("Initializing StatusBarViewModel...")
         let (success, error) = ServiceUtils.loadConfiguration()
@@ -150,12 +153,12 @@ class StatusBarViewModel: ObservableObject {
     
     /// Helper to check if monitoring is enabled
     private func isMonitoringEnabled() -> Bool {
-        // We can add more complex logic here if needed
-        return true
+        return monitoringEnabled
     }
     
     /// Public method to enable/disable monitoring
     func setMonitoring(enabled: Bool) {
+        monitoringEnabled = enabled
         if enabled {
             startMonitoring()
         } else {
