@@ -69,11 +69,25 @@ struct ConfigFile: Codable {
     }
 }
 
+class Logger {
+    // Static property that's initialized once when the class is first accessed
+    static let isVerboseLoggingEnabled: Bool = {
+        return ProcessInfo.processInfo.environment["SERVICE_CHECKER_VERBOSE_LOGGING"] != nil
+    }()
+}
+
 class ServiceUtils {
     /// Checks if a service endpoint is healthy
     /// - Parameter url: The health check URL
     /// - Returns: Tuple of (output string, status code) where 0 means success
     static func checkHealth(_ url: String) -> (String, Int) {
+        var originalStderr: Int32 = -1 // placeholder for original stderr file descriptor
+        
+        if Logger.isVerboseLoggingEnabled {
+            originalStderr = dup(FileHandle.standardError.fileDescriptor)
+            freopen("/dev/null", "w", stderr)
+        }
+        
         // Convert localhost to 127.0.0.1 to force IPv4
         // Avoiding ipv6 for non-local connections is out of scope for now - there
         // will be errors in the console if the service is not reachable over ipv6.
@@ -105,6 +119,11 @@ class ServiceUtils {
         
         task.resume()
         semaphore.wait()
+        
+        if Logger.isVerboseLoggingEnabled { // restore if not verbose
+            dup2(originalStderr, FileHandle.standardError.fileDescriptor)
+            close(originalStderr)
+        }
         
         return result
     }
