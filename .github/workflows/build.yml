@@ -25,7 +25,7 @@ jobs:
         
     - name: Build
       run: |
-        xcodebuild build -scheme "ServiceChecker" -destination "platform=macOS" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+        xcodebuild build -scheme "ServiceChecker" -destination "platform=macOS" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO OTHER_CODE_SIGN_FLAGS="--entitlements ServiceChecker/ServiceChecker.entitlements"
 
     - name: Package App
       run: |

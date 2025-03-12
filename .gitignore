@@ -1,5 +1,4 @@
 xcuserdata/             # Xcode user-specific settings
-/ServiceChecker.xcodeproj/xcshareddata/
 /ServiceChecker.xcodeproj/xcuserdata/
 xcshareddata/           # Xcode shared settings
 DerivedData/        # Xcode derived data (build products, indexes, caches)
