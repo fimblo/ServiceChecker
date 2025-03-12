@@ -5,8 +5,13 @@ class StatusBarViewModel: ObservableObject {
     @Published var services: [ServiceStatus]
     @Published var updateInterval: TimeInterval
     @Published var configError: String?
-    private var updateTimer: Timer?
-    private var startupWatchTimer: Timer?
+    
+    // Single timer for all monitoring
+    private var monitoringTimer: Timer?
+    
+    // Published property to notify UI of startup watch status
+    @Published var isInStartupWatchMode: Bool = false
+    @Published var startupWatchRemainingTime: TimeInterval?
     
     init() {
         print("Initializing StatusBarViewModel...")
@@ -48,48 +53,36 @@ class StatusBarViewModel: ObservableObject {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
-        updateTimer?.invalidate()
-        startupWatchTimer?.invalidate()
+        stopAllMonitoring()
     }
     
+    // Centralized method to handle startup watch status changes
     @objc private func handleStartupWatchStatusChanged() {
-        if AppConfig.isStartupWatchActive {
-            startStartupWatchMonitoring()
-        } else {
-            stopStartupWatchMonitoring()
-            // Restart normal monitoring
-            startMonitoring()
-        }
+        // Update our published property to notify UI
+        isInStartupWatchMode = AppConfig.isStartupWatchActive
+        
+        // Restart monitoring with appropriate interval
+        restartMonitoring()
     }
     
-    /// Starts the periodic monitoring of services
-    private func startMonitoring() {
-        // Don't start normal monitoring if startup watch is active
-        if AppConfig.isStartupWatchActive {
+    // Centralized method to start/restart monitoring with appropriate interval
+    private func restartMonitoring() {
+        stopAllMonitoring()
+        
+        if !isMonitoringEnabled() {
             return
         }
         
-        _ = updateServiceStatuses() // Initial check
-        
-        updateTimer?.invalidate()
-        updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
-            _ = self?.updateServiceStatuses()
-        }
-    }
-    
-    /// Starts more frequent monitoring for Startup Watch mode
-    private func startStartupWatchMonitoring() {
-        // Stop normal monitoring timer
-        updateTimer?.invalidate()
-        updateTimer = nil
+        // Determine the appropriate interval based on mode
+        let interval = isInStartupWatchMode ? 
+            AppConfig.STARTUP_WATCH_INTERVAL : updateInterval
         
         // Start with an immediate check
         _ = updateServiceStatuses()
         
-        // Create a timer that checks more frequently
-        startupWatchTimer?.invalidate()
-        startupWatchTimer = Timer.scheduledTimer(
-            withTimeInterval: AppConfig.STARTUP_WATCH_INTERVAL,
+        // Create a single timer with the appropriate interval
+        monitoringTimer = Timer.scheduledTimer(
+            withTimeInterval: interval,
             repeats: true
         ) { [weak self] _ in
             guard let self = self else { return }
@@ -97,21 +90,33 @@ class StatusBarViewModel: ObservableObject {
             // Update services
             _ = self.updateServiceStatuses()
             
-            // Check if we should continue startup watch
-            let shouldContinue = ServiceUtils.checkStartupWatchStatus(serviceStatuses: self.services)
-            
-            if !shouldContinue {
-                // Startup watch has ended (either timeout or all services up)
-                self.stopStartupWatchMonitoring()
-                self.startMonitoring()
+            // If in startup watch mode, check if we should continue
+            if self.isInStartupWatchMode {
+                // Update remaining time for UI
+                if let remainingTime = ServiceUtils.getStartupWatchRemainingTime() {
+                    self.startupWatchRemainingTime = remainingTime
+                }
+                
+                // Check if we should continue startup watch
+                let shouldContinue = ServiceUtils.checkStartupWatchStatus(serviceStatuses: self.services)
+                
+                if !shouldContinue {
+                    // Startup watch has ended (either timeout or all services up)
+                    // The notification handler will restart normal monitoring
+                }
             }
         }
     }
     
-    /// Stops the startup watch monitoring
-    private func stopStartupWatchMonitoring() {
-        startupWatchTimer?.invalidate()
-        startupWatchTimer = nil
+    /// Starts the periodic monitoring of services
+    private func startMonitoring() {
+        restartMonitoring()
+    }
+    
+    /// Stops all monitoring timers
+    private func stopAllMonitoring() {
+        monitoringTimer?.invalidate()
+        monitoringTimer = nil
     }
     
     /// Updates the interval and restarts monitoring
@@ -121,7 +126,7 @@ class StatusBarViewModel: ObservableObject {
             AppConfig.shared?.updateIntervalSeconds = newInterval
             ServiceUtils.saveConfiguration()
         }
-        startMonitoring()
+        restartMonitoring()
     }
     
     /// Updates the status of all services
@@ -143,23 +148,19 @@ class StatusBarViewModel: ObservableObject {
         return upCount
     }
     
-    func setMonitoring(enabled: Bool) {
-        if enabled {
-            // If startup watch is active, start that instead
-            if AppConfig.isStartupWatchActive {
-                startStartupWatchMonitoring()
-            } else {
-                startMonitoring()
-            }
-        } else {
-            stopMonitoring()
-            stopStartupWatchMonitoring()
-        }
+    /// Helper to check if monitoring is enabled
+    private func isMonitoringEnabled() -> Bool {
+        // We can add more complex logic here if needed
+        return true
     }
     
-    private func stopMonitoring() {
-        updateTimer?.invalidate()
-        updateTimer = nil
+    /// Public method to enable/disable monitoring
+    func setMonitoring(enabled: Bool) {
+        if enabled {
+            startMonitoring()
+        } else {
+            stopAllMonitoring()
+        }
     }
     
     /// Reloads the configuration from disk and updates the view model
@@ -173,16 +174,24 @@ class StatusBarViewModel: ObservableObject {
             }
             self.updateInterval = newConfig.updateIntervalSeconds
             
-            // If startup watch is active, start that instead of normal monitoring
-            if AppConfig.isStartupWatchActive {
-                startStartupWatchMonitoring()
-            } else {
-                startMonitoring()
-            }
+            // Update startup watch status
+            self.isInStartupWatchMode = AppConfig.isStartupWatchActive
+            
+            // Restart monitoring with appropriate settings
+            restartMonitoring()
         } else {
             self.services = []
-            stopMonitoring()
-            stopStartupWatchMonitoring()
+            stopAllMonitoring()
         }
+    }
+    
+    /// Manually toggle startup watch mode
+    func toggleStartupWatch() {
+        if AppConfig.isStartupWatchActive {
+            ServiceUtils.stopStartupWatch()
+        } else {
+            ServiceUtils.startStartupWatch()
+        }
+        // The notification handler will take care of updating timers
     }
 } 
