@@ -6,6 +6,11 @@ struct AppConfig {
     static let DEFAULT_UPDATE_INTERVAL: TimeInterval = 10.0
     /// The default network timeout in seconds
     static let NETWORK_TIMEOUT_SECONDS: TimeInterval = 5
+    /// The startup watch duration in seconds (3 minutes)
+    static let STARTUP_WATCH_DURATION: TimeInterval = 180.0
+    /// The startup watch check interval in seconds
+    static let STARTUP_WATCH_INTERVAL: TimeInterval = 1.0
+    
     static let DEFAULT_SYMBOL_UP = "🟢"
     static let DEFAULT_SYMBOL_DOWN = "🔴"
     static let DEFAULT_SYMBOL_DISABLED = "⚪"
@@ -15,6 +20,10 @@ struct AppConfig {
     var symbolUp: String
     var symbolDown: String
     var symbolDisabled: String
+    
+    // Startup watch state
+    static var isStartupWatchActive: Bool = false
+    static var startupWatchStartTime: Date?
     
     static var shared: AppConfig?
     
@@ -282,5 +291,76 @@ class ServiceUtils {
         } catch {
             print("Error saving configuration: \(error)")
         }
+    }
+
+    /// Starts the Startup Watch mode and notifies observers
+    static func startStartupWatch() {
+        if !AppConfig.isStartupWatchActive {
+            AppConfig.isStartupWatchActive = true
+            AppConfig.startupWatchStartTime = Date()
+            
+            NotificationCenter.default.post(
+                name: Notification.Name("StartupWatchStatusChanged"),
+                object: nil
+            )
+            
+            print("Startup Watch activated - monitoring services every \(AppConfig.STARTUP_WATCH_INTERVAL) seconds")
+        }
+    }
+    
+    /// Stops the Startup Watch mode and notifies observers
+    static func stopStartupWatch() {
+        if AppConfig.isStartupWatchActive {
+            AppConfig.isStartupWatchActive = false
+            AppConfig.startupWatchStartTime = nil
+            
+            NotificationCenter.default.post(
+                name: Notification.Name("StartupWatchStatusChanged"),
+                object: nil
+            )
+            
+            print("Startup Watch deactivated - returning to normal monitoring")
+        }
+    }
+    
+    /// Checks if Startup Watch should be stopped due to timeout or all services up
+    static func checkStartupWatchStatus(serviceStatuses: [ServiceStatus]) -> Bool {
+        guard AppConfig.isStartupWatchActive,
+              let startTime = AppConfig.startupWatchStartTime else {
+            return false
+        }
+        
+        // Check if timeout reached (3 minutes)
+        let elapsedTime = Date().timeIntervalSince(startTime)
+        if elapsedTime >= AppConfig.STARTUP_WATCH_DURATION {
+            print("Startup Watch timeout reached (\(AppConfig.STARTUP_WATCH_DURATION) seconds)")
+            stopStartupWatch()
+            return false
+        }
+        
+        // Check if all services are up (excluding disabled services)
+        let enabledServices = serviceStatuses.filter { $0.mode == "enabled" }
+        let allServicesUp = enabledServices.allSatisfy { $0.status }
+        
+        if allServicesUp && !enabledServices.isEmpty {
+            print("Startup Watch completed - all services are up")
+            stopStartupWatch()
+            return false
+        }
+        
+        // else continue
+        return true
+    }
+    
+    /// Returns the remaining time for Startup Watch in seconds
+    static func getStartupWatchRemainingTime() -> TimeInterval? {
+        guard AppConfig.isStartupWatchActive,
+              let startTime = AppConfig.startupWatchStartTime else {
+            return nil
+        }
+        
+        let elapsedTime = Date().timeIntervalSince(startTime)
+        let remainingTime = max(0, AppConfig.STARTUP_WATCH_DURATION - elapsedTime)
+        return remainingTime
     }
 }
