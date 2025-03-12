@@ -6,6 +6,7 @@ class StatusBarViewModel: ObservableObject {
     @Published var updateInterval: TimeInterval
     @Published var configError: String?
     private var updateTimer: Timer?
+    private var startupWatchTimer: Timer?
     
     init() {
         print("Initializing StatusBarViewModel...")
@@ -35,16 +36,82 @@ class StatusBarViewModel: ObservableObject {
         if success {
             startMonitoring()
         }
+        
+        // Add observer for startup watch status changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleStartupWatchStatusChanged),
+            name: Notification.Name("StartupWatchStatusChanged"),
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        updateTimer?.invalidate()
+        startupWatchTimer?.invalidate()
+    }
+    
+    @objc private func handleStartupWatchStatusChanged() {
+        if AppConfig.isStartupWatchActive {
+            startStartupWatchMonitoring()
+        } else {
+            stopStartupWatchMonitoring()
+            // Restart normal monitoring
+            startMonitoring()
+        }
     }
     
     /// Starts the periodic monitoring of services
     private func startMonitoring() {
+        // Don't start normal monitoring if startup watch is active
+        if AppConfig.isStartupWatchActive {
+            return
+        }
+        
         _ = updateServiceStatuses() // Initial check
         
         updateTimer?.invalidate()
         updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             _ = self?.updateServiceStatuses()
         }
+    }
+    
+    /// Starts more frequent monitoring for Startup Watch mode
+    private func startStartupWatchMonitoring() {
+        // Stop normal monitoring timer
+        updateTimer?.invalidate()
+        updateTimer = nil
+        
+        // Start with an immediate check
+        _ = updateServiceStatuses()
+        
+        // Create a timer that checks more frequently
+        startupWatchTimer?.invalidate()
+        startupWatchTimer = Timer.scheduledTimer(
+            withTimeInterval: AppConfig.STARTUP_WATCH_INTERVAL,
+            repeats: true
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            
+            // Update services
+            _ = self.updateServiceStatuses()
+            
+            // Check if we should continue startup watch
+            let shouldContinue = ServiceUtils.checkStartupWatchStatus(serviceStatuses: self.services)
+            
+            if !shouldContinue {
+                // Startup watch has ended (either timeout or all services up)
+                self.stopStartupWatchMonitoring()
+                self.startMonitoring()
+            }
+        }
+    }
+    
+    /// Stops the startup watch monitoring
+    private func stopStartupWatchMonitoring() {
+        startupWatchTimer?.invalidate()
+        startupWatchTimer = nil
     }
     
     /// Updates the interval and restarts monitoring
@@ -78,9 +145,15 @@ class StatusBarViewModel: ObservableObject {
     
     func setMonitoring(enabled: Bool) {
         if enabled {
-            startMonitoring()
+            // If startup watch is active, start that instead
+            if AppConfig.isStartupWatchActive {
+                startStartupWatchMonitoring()
+            } else {
+                startMonitoring()
+            }
         } else {
             stopMonitoring()
+            stopStartupWatchMonitoring()
         }
     }
     
@@ -99,14 +172,17 @@ class StatusBarViewModel: ObservableObject {
                 ServiceStatus(name: config.name, url: config.url, status: false, lastError: "", mode: config.mode)
             }
             self.updateInterval = newConfig.updateIntervalSeconds
-            startMonitoring()
+            
+            // If startup watch is active, start that instead of normal monitoring
+            if AppConfig.isStartupWatchActive {
+                startStartupWatchMonitoring()
+            } else {
+                startMonitoring()
+            }
         } else {
             self.services = []
             stopMonitoring()
+            stopStartupWatchMonitoring()
         }
-    }
-    
-    deinit {
-        updateTimer?.invalidate()
     }
 } 

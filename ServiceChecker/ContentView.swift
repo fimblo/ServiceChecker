@@ -441,38 +441,10 @@ class StatusBarController: NSObject, ObservableObject {
             ServiceUtils.stopStartupWatch()
         } else {
             ServiceUtils.startStartupWatch()
-            
-            // Start a timer to update the menu more frequently during startup watch
-            startStartupWatchTimer()
         }
-    }
-
-    // Add method to create a timer for updating the menu during startup watch
-    private func startStartupWatchTimer() {
-        // Create a timer that fires every second during startup watch
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
-            guard let self = self else {
-                timer.invalidate()
-                return
-            }
-            
-            // Check if we should continue startup watch
-            let shouldContinue = ServiceUtils.checkStartupWatchStatus(serviceStatuses: self.viewModel.services)
-            
-            if shouldContinue {
-                // Update the menu to refresh the countdown
-                self.buildMenu()
-                
-                // Force an update of service statuses
-                DispatchQueue.global(qos: .userInitiated).async {
-                    let _ = self.viewModel.updateServiceStatuses()
-                }
-            } else {
-                // Stop the timer when startup watch is complete
-                timer.invalidate()
-                self.buildMenu()
-            }
-        }
+        
+        // Update menu item state
+        buildMenu()
     }
 
     // Add this to deinit if it exists, or create a deinit method
