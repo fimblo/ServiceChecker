@@ -64,6 +64,13 @@ class StatusBarViewModel: ObservableObject {
         // Update our published property to notify UI
         isInStartupWatchMode = AppConfig.isStartupWatchActive
         
+        // Update the remaining time if in startup watch mode
+        if isInStartupWatchMode {
+            startupWatchRemainingTime = ServiceUtils.getStartupWatchRemainingTime()
+        } else {
+            startupWatchRemainingTime = nil
+        }
+        
         // Restart monitoring with appropriate interval
         restartMonitoring()
     }

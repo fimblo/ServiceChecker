@@ -441,10 +441,8 @@ class StatusBarController: NSObject, ObservableObject {
         }
     }
 
-    // Modify the toggleStartupWatch method to use ViewModel instead of ServiceUtils directly
     @objc private func toggleStartupWatch() {
         viewModel.toggleStartupWatch()
-        // No need to call buildMenu() here as it will be triggered by the published property change
     }
 }
 
