@@ -204,4 +204,11 @@ class StatusBarViewModel: ObservableObject {
         }
         // The notification handler will take care of updating timers
     }
+    
+    // Add this method to StatusBarViewModel to manually update the remaining time
+    func updateStartupWatchRemainingTime() {
+        if isInStartupWatchMode {
+            startupWatchRemainingTime = ServiceUtils.getStartupWatchRemainingTime()
+        }
+    }
 } 

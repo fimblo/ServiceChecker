@@ -10,7 +10,7 @@ import Foundation
 import Combine
 
 /// Controls the status bar menu and service monitoring
-class StatusBarController: NSObject, ObservableObject {
+class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
     private let viewModel: StatusBarViewModel
     private var statusBarItem: NSStatusItem!
     private var menu: NSMenu!
@@ -21,6 +21,8 @@ class StatusBarController: NSObject, ObservableObject {
             viewModel.setMonitoring(enabled: isMonitoringEnabled)
         }
     }
+    
+    private var menuUpdateTimer: Timer?
     
     override init() {
         self.viewModel = StatusBarViewModel()
@@ -66,6 +68,7 @@ class StatusBarController: NSObject, ObservableObject {
             //button.imageScaling = .scaleProportionallyDown
         }
         menu = NSMenu()
+        menu.delegate = self  // Set the delegate
         statusBarItem.menu = menu
         
         // Observe changes to rebuild menu and update icon
@@ -120,7 +123,16 @@ class StatusBarController: NSObject, ObservableObject {
             
             // Create label with same positioning as monitoring label
             let startupWatchLabel = NSTextField(frame: NSRect(x: 16, y: 2, width: 160, height: 16))
-            startupWatchLabel.stringValue = "Startup Watch"
+            
+            // Include the countdown in the label if in startup watch mode
+            if viewModel.isInStartupWatchMode, let remainingTime = viewModel.startupWatchRemainingTime {
+                let minutes = Int(remainingTime) / 60
+                let seconds = Int(remainingTime) % 60
+                startupWatchLabel.stringValue = "Startup Watch: \(minutes)m \(seconds)s"
+            } else {
+                startupWatchLabel.stringValue = "Startup Watch"
+            }
+            
             startupWatchLabel.isEditable = false
             startupWatchLabel.isBordered = false
             startupWatchLabel.backgroundColor = .clear
@@ -159,33 +171,22 @@ class StatusBarController: NSObject, ObservableObject {
             errorItem.view = errorView
             menu.addItem(errorItem)
         } else {
-            // Add interval info item
-            let intervalInfoItem = NSMenuItem()
-            let intervalView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
-            
-            let intervalLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
-            
-            if viewModel.isInStartupWatchMode {
-                // Show remaining time if in startup watch mode
-                if let remainingTime = viewModel.startupWatchRemainingTime {
-                    let minutes = Int(remainingTime) / 60
-                    let seconds = Int(remainingTime) % 60
-                    intervalLabel.stringValue = "Startup Watch: \(minutes)m \(seconds)s remaining"
-                } else {
-                    intervalLabel.stringValue = "Startup Watch active"
-                }
-            } else {
+            // Add interval info item only if not in startup watch mode
+            if !viewModel.isInStartupWatchMode {
+                let intervalInfoItem = NSMenuItem()
+                let intervalView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+                
+                let intervalLabel = NSTextField(frame: NSRect(x: 16, y: 0, width: 200, height: 20))
                 intervalLabel.stringValue = "Update interval: \(Int(viewModel.updateInterval)) seconds"
+                intervalLabel.isEditable = false
+                intervalLabel.isBordered = false
+                intervalLabel.backgroundColor = .clear
+                intervalLabel.textColor = .labelColor
+                
+                intervalView.addSubview(intervalLabel)
+                intervalInfoItem.view = intervalView
+                menu.addItem(intervalInfoItem)
             }
-            
-            intervalLabel.isEditable = false
-            intervalLabel.isBordered = false
-            intervalLabel.backgroundColor = .clear
-            intervalLabel.textColor = .labelColor
-            
-            intervalView.addSubview(intervalLabel)
-            intervalInfoItem.view = intervalView
-            menu.addItem(intervalInfoItem)
             
             menu.addItem(NSMenuItem.separator())
             
@@ -453,6 +454,86 @@ class StatusBarController: NSObject, ObservableObject {
 
     @objc private func toggleStartupWatch() {
         viewModel.toggleStartupWatch()
+    }
+
+    // MARK: - NSMenuDelegate methods
+    
+    func menuWillOpen(_ menu: NSMenu) {
+        // Stop any existing timer
+        menuUpdateTimer?.invalidate()
+        menuUpdateTimer = nil
+        
+        // Use a longer interval (1 second) to reduce flickering
+        menuUpdateTimer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateCountdownOnly()
+        }
+        
+        if let timer = menuUpdateTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+    
+    func menuDidClose(_ menu: NSMenu) {
+        menuUpdateTimer?.invalidate()
+        menuUpdateTimer = nil
+    }
+    
+    /// Updates only the countdown timer while menu is open
+    private func updateCountdownOnly() {
+        // First update the remaining time in the view model
+        viewModel.updateStartupWatchRemainingTime()
+
+        // Then update the UI
+        if viewModel.isInStartupWatchMode, 
+           let remainingTime = viewModel.startupWatchRemainingTime,
+           let startupWatchItem = menu.items.first(where: { 
+               $0.view?.subviews.first is NSTextField && 
+               ($0.view?.subviews.first as? NSTextField)?.stringValue.contains("Startup Watch") == true 
+           }),
+           let startupWatchView = startupWatchItem.view,
+           let startupWatchLabel = startupWatchView.subviews.first as? NSTextField {
+            
+            let minutes = Int(remainingTime) / 60
+            let seconds = Int(remainingTime) % 60
+            startupWatchLabel.stringValue = "Startup Watch: \(minutes)m \(seconds)s"
+        }
+        
+        // Manually check service statuses while menu is open
+        if isMonitoringEnabled {
+            for (index, service) in viewModel.services.enumerated() {
+                if service.mode == "enabled" {
+                    // Directly check service health
+                    let (errorMessage, status) = ServiceUtils.checkHealth(service.url)
+                    let isUp = status == 0
+                    
+                    // Update the view model
+                    DispatchQueue.main.async {
+                        self.viewModel.services[index].status = isUp
+                        if !errorMessage.isEmpty {
+                            self.viewModel.services[index].lastError = errorMessage
+                        }
+                        
+                        // Update the menu item
+                        if let menuItem = self.menu.items.first(where: { $0.tag == index }),
+                           let itemView = menuItem.view,
+                           let serviceLabel = itemView.subviews.first as? NSTextField {
+                            
+                            let statusSymbol = isUp ? 
+                                AppConfig.shared?.symbolUp ?? AppConfig.DEFAULT_SYMBOL_UP : 
+                                AppConfig.shared?.symbolDown ?? AppConfig.DEFAULT_SYMBOL_DOWN
+                            let errorText = errorMessage.isEmpty ? "" : " (\(errorMessage))"
+                            serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Update the status bar icon
+        if let button = statusBarItem.button {
+            let upCount = viewModel.services.filter { $0.status && $0.mode == "enabled" }.count
+            updateStatusBarIcon(button: button, upCount: upCount)
+        }
     }
 }
 
