@@ -1,4 +1,7 @@
-xcuserdata/             # Xcode user-specific settings (VERY IMPORTANT!)
+xcuserdata/             # Xcode user-specific settings
+/ServiceChecker.xcodeproj/xcshareddata/
+/ServiceChecker.xcodeproj/xcuserdata/
+xcshareddata/           # Xcode shared settings
 DerivedData/        # Xcode derived data (build products, indexes, caches)
 build/                # Xcode build products
 *.swp                 # Swap files (created by text editors)
