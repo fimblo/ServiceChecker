@@ -93,6 +93,7 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
         
         // Add monitoring toggle
         let toggleItem = NSMenuItem()
+        toggleItem.tag = -1  // Use a tag that won't conflict with service indices
         let itemView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
         
         // Adjust y-coordinate of the label to better align with the checkbox
@@ -465,7 +466,7 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
         
         // Use a longer interval (1 second) to reduce flickering
         menuUpdateTimer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateCountdownOnly()
+            self?.updateMenuItemsWhileOpen()
         }
         
         if let timer = menuUpdateTimer {
@@ -478,12 +479,9 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
         menuUpdateTimer = nil
     }
     
-    /// Updates only the countdown timer while menu is open
-    private func updateCountdownOnly() {
-        // First update the remaining time in the view model
-        viewModel.updateStartupWatchRemainingTime()
-
-        // Then update the UI
+    /// Updates specific menu items without rebuilding the entire menu
+    private func updateMenuItemsWhileOpen() {
+        // Only update the countdown timer text
         if viewModel.isInStartupWatchMode, 
            let remainingTime = viewModel.startupWatchRemainingTime,
            let startupWatchItem = menu.items.first(where: { 
@@ -493,47 +491,29 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
            let startupWatchView = startupWatchItem.view,
            let startupWatchLabel = startupWatchView.subviews.first as? NSTextField {
             
+            // Update the remaining time in the view model
+            viewModel.updateStartupWatchRemainingTime()
+            
             let minutes = Int(remainingTime) / 60
             let seconds = Int(remainingTime) % 60
             startupWatchLabel.stringValue = "Startup Watch: \(minutes)m \(seconds)s"
         }
         
-        // Manually check service statuses while menu is open
-        if isMonitoringEnabled {
-            for (index, service) in viewModel.services.enumerated() {
-                if service.mode == "enabled" {
-                    // Directly check service health
-                    let (errorMessage, status) = ServiceUtils.checkHealth(service.url)
-                    let isUp = status == 0
-                    
-                    // Update the view model
-                    DispatchQueue.main.async {
-                        self.viewModel.services[index].status = isUp
-                        if !errorMessage.isEmpty {
-                            self.viewModel.services[index].lastError = errorMessage
-                        }
-                        
-                        // Update the menu item
-                        if let menuItem = self.menu.items.first(where: { $0.tag == index }),
-                           let itemView = menuItem.view,
-                           let serviceLabel = itemView.subviews.first as? NSTextField {
-                            
-                            let statusSymbol = isUp ? 
-                                AppConfig.shared?.symbolUp ?? AppConfig.DEFAULT_SYMBOL_UP : 
-                                AppConfig.shared?.symbolDown ?? AppConfig.DEFAULT_SYMBOL_DOWN
-                            let errorText = errorMessage.isEmpty ? "" : " (\(errorMessage))"
-                            serviceLabel.stringValue = "\(statusSymbol) \(service.name)\(errorText)"
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Update the status bar icon
+        // Update the status bar icon only
         if let button = statusBarItem.button {
             let upCount = viewModel.services.filter { $0.status && $0.mode == "enabled" }.count
             updateStatusBarIcon(button: button, upCount: upCount)
         }
+        
+        // DO NOT update service items while menu is open - this causes duplication
+        // Users will need to close and reopen the menu to see service status changes
+    }
+}
+
+// Add this extension to safely access array elements
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 
