@@ -296,6 +296,8 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
         // Create a new image that will contain both the server rack and the overlay
         let compositeImage = NSImage(size: NSSize(width: 18, height: 18))
         compositeImage.lockFocus()
+        // Image is a template; thus MAC OS will apply the colors based on system light/dark modes
+        compositeImage.isTemplate = true;
         
         if !isMonitoringEnabled {
             // Greyed out server rack for disabled monitoring
@@ -322,17 +324,7 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
                 )
                 x.draw(at: xPoint, withAttributes: attributes)
             } else {
-                // Check status of enabled services only
-                let enabledServices = viewModel.services.filter { $0.mode == "enabled" }
-                if !enabledServices.isEmpty {
-                    let allUp = enabledServices.allSatisfy { $0.status }
-                    if !allUp {
-                        // Draw a small red dot in the bottom right corner
-                        let dotPath = NSBezierPath(ovalIn: NSRect(x: 12, y: 0, width: 6, height: 6))
-                        NSColor.red.setFill()
-                        dotPath.fill()
-                    }
-                }
+      
             }
         }
         
@@ -340,6 +332,23 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
         
         button.image = compositeImage
         button.attributedTitle = NSAttributedString()
+        
+        
+        if isMonitoringEnabled {
+            // Check status of enabled services only
+            let enabledServices = viewModel.services.filter { $0.mode == "enabled" }
+            if !enabledServices.isEmpty {
+                let allUp = enabledServices.allSatisfy { $0.status }
+                if !allUp {
+                    // Overlay red indicator
+                      let redDot = NSView(frame: NSRect(x: button.frame.width - 12, y: button.frame.height - 6, width: 6, height: 6))
+                      redDot.wantsLayer = true
+                      redDot.layer?.cornerRadius = 3 // Rounded red dot
+                      redDot.layer?.backgroundColor = NSColor.red.cgColor // Red color
+                      button.addSubview(redDot)
+                }
+            }
+        }
     }
 
     /// Opens the configuration directory in Finder
