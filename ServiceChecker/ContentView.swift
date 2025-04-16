@@ -333,21 +333,34 @@ class StatusBarController: NSObject, ObservableObject, NSMenuDelegate {
         button.image = compositeImage
         button.attributedTitle = NSAttributedString()
         
+        // Overlay red indicator
+        let redDot = NSView(frame: NSRect(x: button.frame.width - 12, y: button.frame.height - 6, width: 6, height: 6))
+        redDot.wantsLayer = true
+        redDot.layer?.cornerRadius = 3 // Rounded red dot
+        redDot.layer?.backgroundColor = NSColor.red.cgColor // Red color
+        redDot.identifier = NSUserInterfaceItemIdentifier("redDot")
+
+        let found = button.subviews.first(where: {
+            $0.identifier?.rawValue == "redDot"
+        })
+        var allServicesAreUp = true
         
         if isMonitoringEnabled {
             // Check status of enabled services only
             let enabledServices = viewModel.services.filter { $0.mode == "enabled" }
             if !enabledServices.isEmpty {
                 let allUp = enabledServices.allSatisfy { $0.status }
-                if !allUp {
-                    // Overlay red indicator
-                      let redDot = NSView(frame: NSRect(x: button.frame.width - 12, y: button.frame.height - 6, width: 6, height: 6))
-                      redDot.wantsLayer = true
-                      redDot.layer?.cornerRadius = 3 // Rounded red dot
-                      redDot.layer?.backgroundColor = NSColor.red.cgColor // Red color
-                      button.addSubview(redDot)
+                if !allUp{
+                    allServicesAreUp = false
+                    if (found == nil) {
+                        button.addSubview(redDot)
+                    }
                 }
             }
+        }
+        
+        if allServicesAreUp && (found != nil){
+            found?.removeFromSuperview()
         }
     }
 
